@@ -23,8 +23,11 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "Hotraco Speria FSM",
+      "shortName": "Hotraco FSM"
     },
+
     "plugins": [
       "expo-router",
       [
@@ -38,7 +41,8 @@
       "expo-sqlite"
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "baseUrl": "/uren-registratie"
     }
   }
 }

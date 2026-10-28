@@ -1,53 +1,41 @@
 # Hotraco / Speria Field Service Manager
 
-Expo-app (web) voor Field Service Engineers, Service Managers en Planning.
+Web-app voor Field Service Engineers, Service Managers en Planning.
 
-## Inloggen (demo)
-| Rol | Voorbeelden | PIN |
-|-----|-------------|-----|
-| Medewerker | Jan de Vries, Sara Bakker, Tom Jansen | `1234` |
-| Manager | Service Manager, Planning Lead | `9999` |
+## Simpele link (aanbevolen)
 
-## Procedure overuren
-1. Medewerker voert een **hele week** in.
-2. Bij indienen: **TVT** of **Uitbetalen**.
-3. Manager ziet weken op **weeknummer** + naam en kan alleen **accepteren** of **afwijzen**.
-4. TVT-saldo / loonstrook blijven in andere systemen.
+Open de app in de browser — geen Node, geen terminal:
 
-## Op je PC / in het buitenland
+**https://yovadi.github.io/uren-registratie/**
 
-### Lokaal starten (ontwikkeling)
+### Eenmalig aanzetten (repo-eigenaar)
+GitHub Pages staat nog niet aan. Doe dit **één keer**:
+
+1. Open https://github.com/Yovadi/uren-registratie/settings/pages  
+2. Onder **Build and deployment** → **Source**: kies **Deploy from a branch**  
+3. Branch: **`gh-pages`** / map **`/` (root)** → Save  
+
+Daarna werkt de link hierboven overal (ook in het buitenland).  
+Data blijft bewaard in de browser + via **Meer → Exporteer back-up**.
+
+### Login (demo)
+| Rol | PIN |
+|-----|-----|
+| Medewerker (Jan / Sara / Tom) | `1234` |
+| Manager | `9999` |
+
+## Back-up onderweg
+**Meer → Exporteer alle gegevens** → zet JSON in OneDrive/Teams.  
+Andere laptop: **Importeer back-up…**
+
+## Lokaal ontwikkelen (optioneel)
 ```bash
 git clone https://github.com/Yovadi/uren-registratie.git
 cd uren-registratie
-git checkout cursor/hotraco-speria-fsm-d046   # of main na merge
 npm install
 npx expo start --web
 ```
-Open `http://localhost:8081`.
 
-### Waar blijven gegevens?
-- **Automatisch** in de browser (localStorage) op **dit apparaat**.
-- Werkt offline zodra de app geladen is (veldwerk / hotel-wifi).
-- Zelfde laptop + dezelfde browser = data blijft na herstart.
-
-### Back-up (belangrijk onderweg)
-In **Meer → Back-up & onderweg**:
-1. **Exporteer alle gegevens** → JSON-bestand  
-2. Bewaar dat in **OneDrive / Teams / USB**  
-3. Op een andere PC: **Importeer back-up…**
-
-Zo raak je niets kwijt als je van laptop wisselt of browserdata wist.  
-Manager en medewerker op verschillende devices: wissel via dit back-upbestand (gedeelde Teams-map), tot er cloud-sync is.
-
-### Wat wist data?
-| Actie | Data weg? |
-|-------|-----------|
-| PC / app herstarten | Nee |
-| Andere browser / Incognito | Ja (andere opslag) |
-| Browser sitegegevens wissen | Ja |
-| **Reset demo-data** | Ja |
-| Nieuwe laptop zonder import | Ja — eerst back-up importeren |
-
-## Kleuren
-Primair `#0F4C81` · secundair `#70AD47` · accent `#ED7D31`
+## Overuren-procedure
+1. Week invoeren → medewerker kiest TVT of uitbetalen  
+2. Manager accepteert of wijst af (weeknummer + naam)
