@@ -3,6 +3,8 @@ import {
   buildWeekSnapshots,
   createSubmissionFromSnapshot,
   approveWeek,
+  rejectWeek,
+  requestWeekInfo,
 } from './overtime-weeks';
 import type { OverurenWeek, WerkRegistratie } from './types';
 
@@ -153,27 +155,14 @@ export function buildSeedOverurenWeken(registraties: WerkRegistratie[]): Overure
       );
     }
     if (i % 4 === 1) {
-      return {
-        ...submitted,
-        status: 'afgewezen' as const,
-        beoordeeldOp: new Date().toISOString(),
-        beoordeeldDoor: 'Service Manager',
-        afwijzingsReden: 'Pauze niet correct; graag corrigeren',
-        verwerking: null,
-        verwerkingToelichting: null,
-        managerOpmerking: null,
-      };
+      return rejectWeek(submitted, 'Service Manager', 'Pauze niet correct; graag corrigeren');
     }
     if (i % 4 === 2) {
-      return {
-        ...submitted,
-        status: 'info_gevraagd' as const,
-        beoordeeldOp: new Date().toISOString(),
-        beoordeeldDoor: 'Service Manager',
-        managerOpmerking: 'Klopt de hotelnacht van dinsdag? Graag bevestigen.',
-        verwerking: null,
-        verwerkingToelichting: null,
-      };
+      return requestWeekInfo(
+        submitted,
+        'Service Manager',
+        'Klopt de hotelnacht van dinsdag? Graag bevestigen.',
+      );
     }
     return submitted;
   });

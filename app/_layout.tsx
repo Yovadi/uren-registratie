@@ -2,8 +2,10 @@ import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { View } from 'react-native';
 import 'react-native-reanimated';
 
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { AppDataProvider } from '@/context/AppDataContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { Brand } from '@/constants/Colors';
@@ -50,23 +52,26 @@ export default function RootLayout() {
     <AuthProvider>
       <AppDataProvider>
         <AuthGate>
-          <Stack
-            screenOptions={{
-              headerStyle: { backgroundColor: Brand.header },
-              headerTintColor: '#fff',
-              headerTitleStyle: { fontWeight: '700' },
-            }}>
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="login" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="registratie/new"
-              options={{ presentation: 'modal', title: 'Nieuwe registratie' }}
-            />
-            <Stack.Screen name="analyse/klant" options={{ title: 'Klantanalyse' }} />
-            <Stack.Screen name="analyse/project" options={{ title: 'Projectanalyse' }} />
-            <Stack.Screen name="analyse/land" options={{ title: 'Hotel & toelage' }} />
-          </Stack>
+          <View style={{ flex: 1 }}>
+            <OfflineBanner />
+            <Stack
+              screenOptions={{
+                headerStyle: { backgroundColor: Brand.header },
+                headerTintColor: '#fff',
+                headerTitleStyle: { fontWeight: '700' },
+              }}>
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="login" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="registratie/new"
+                options={{ presentation: 'modal', title: 'Nieuwe registratie' }}
+              />
+              <Stack.Screen name="analyse/klant" options={{ title: 'Klantanalyse' }} />
+              <Stack.Screen name="analyse/project" options={{ title: 'Projectanalyse' }} />
+              <Stack.Screen name="analyse/land" options={{ title: 'Hotel & toelage' }} />
+            </Stack>
+          </View>
         </AuthGate>
       </AppDataProvider>
     </AuthProvider>

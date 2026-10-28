@@ -1,10 +1,29 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { useMemo } from 'react';
 import { Platform } from 'react-native';
 
 import { Brand } from '@/constants/Colors';
+import { useAppData } from '@/context/AppDataContext';
+import { useAuth } from '@/context/AuthContext';
 
 export default function TabLayout() {
+  const { session } = useAuth();
+  const { overurenWeken, settings } = useAppData();
+  const isManager = session?.rol === 'manager' || settings.rol === 'manager';
+  const myName = session?.naam ?? settings.medewerkerNaam;
+
+  const badge = useMemo(() => {
+    if (isManager) {
+      const n = overurenWeken.filter((w) => w.status === 'ingediend').length;
+      return n > 0 ? n : undefined;
+    }
+    const n = overurenWeken.filter(
+      (w) => w.medewerker === myName && w.status === 'info_gevraagd',
+    ).length;
+    return n > 0 ? n : undefined;
+  }, [isManager, overurenWeken, myName]);
+
   return (
     <Tabs
       screenOptions={{
@@ -42,6 +61,13 @@ export default function TabLayout() {
         name="overuren"
         options={{
           title: 'Overuren',
+          tabBarBadge: badge,
+          tabBarBadgeStyle: {
+            backgroundColor: Brand.accent,
+            color: '#fff',
+            fontSize: 11,
+            fontWeight: '700',
+          },
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="checkmark-done-outline" size={size} color={String(color)} />
           ),

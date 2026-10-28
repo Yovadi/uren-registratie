@@ -5,7 +5,6 @@ import {
   FlatList,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
@@ -27,23 +26,22 @@ import {
   approveWeek,
   buildWeekSnapshots,
   createSubmissionFromSnapshot,
+  downloadCsv,
   formatHours,
   isoWeekLabel,
   mergeWeeksWithSubmissions,
   rejectWeek,
   requestWeekInfo,
   statusLabel,
+  summarizeWeekRows,
+  unsubmittedPastWeeks,
+  weekToCsv,
   type OverurenWeek,
   type OverurenWeekStatus,
+  type VerwerkingKeuze,
   type WerkRegistratie,
 } from '@/domain';
 import { Brand } from '@/constants/Colors';
-
-type TeamGroup = {
-  medewerker: string;
-  teControleren: OverurenWeek[];
-  afgehandeld: OverurenWeek[];
-};
 
 export default function OverurenScreen() {
   const theme = useTheme();
@@ -52,70 +50,52 @@ export default function OverurenScreen() {
   const isManager = session?.rol === 'manager' || settings.rol === 'manager';
   const myName = session?.naam ?? settings.medewerkerNaam;
 
-  const [showAfgehandeld, setShowAfgehandeld] = useState(false);
-  const [expandedMember, setExpandedMember] = useState<string | null>(null);
-  const [expandedWeekId, setExpandedWeekId] = useState<string | null>(null);
+  const [showDone, setShowDone] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [confirmSnapKey, setConfirmSnapKey] = useState<string | null>(null);
   const [submitNote, setSubmitNote] = useState('');
   const [actionWeekId, setActionWeekId] = useState<string | null>(null);
   const [actionMode, setActionMode] = useState<'reject' | 'info' | 'gemengd' | null>(null);
   const [actionText, setActionText] = useState('');
 
-  /** Engineer: snapshots of own overtime weeks (incl. not yet submitted). */
-  const engineerWeeks = useMemo(() => {
-    const rows = registraties.filter((r) => r.Medewerker === myName);
-    const snaps = buildWeekSnapshots(rows);
-    return mergeWeeksWithSubmissions(snaps, overurenWeken);
-  }, [registraties, overurenWeken, myName]);
-
-  /**
-   * Manager: only weeks that were actually submitted, grouped per team member.
-   * Default focus = still need review (ingediend).
-   */
-  const teamGroups: TeamGroup[] = useMemo(() => {
-    const submitted = overurenWeken.filter((w) =>
-      ['ingediend', 'info_gevraagd', 'goedgekeurd', 'afgewezen'].includes(w.status),
-    );
-    const byMember = new Map<string, OverurenWeek[]>();
-    for (const w of submitted) {
-      const list = byMember.get(w.medewerker) ?? [];
-      list.push(w);
-      byMember.set(w.medewerker, list);
-    }
-    return [...byMember.entries()]
-      .map(([medewerker, weeks]) => {
-        const sorted = [...weeks].sort((a, b) => b.weekStart.localeCompare(a.weekStart));
-        return {
-          medewerker,
-          teControleren: sorted.filter((w) => w.status === 'ingediend'),
-          afgehandeld: sorted.filter((w) => w.status !== 'ingediend'),
-        };
-      })
-      .filter((g) => g.teControleren.length > 0 || g.afgehandeld.length > 0)
-      .sort((a, b) => {
-        // Members with pending review first
-        if (a.teControleren.length !== b.teControleren.length) {
-          return b.teControleren.length - a.teControleren.length;
-        }
-        return a.medewerker.localeCompare(b.medewerker, 'nl');
-      });
-  }, [overurenWeken]);
-
-  const pendingCount = useMemo(
-    () => overurenWeken.filter((w) => w.status === 'ingediend').length,
-    [overurenWeken],
-  );
-
-  const membersWithPending = useMemo(
-    () => teamGroups.filter((g) => g.teControleren.length > 0).length,
-    [teamGroups],
-  );
-
   const regsById = useMemo(() => {
     const m = new Map<number, WerkRegistratie>();
     for (const r of registraties) m.set(r.RegistratieID, r);
     return m;
   }, [registraties]);
+
+  const engineerSnaps = useMemo(() => {
+    const rows = registraties.filter((r) => r.Medewerker === myName);
+    return mergeWeeksWithSubmissions(buildWeekSnapshots(rows), overurenWeken);
+  }, [registraties, overurenWeken, myName]);
+
+  const reminders = useMemo(
+    () =>
+      unsubmittedPastWeeks(
+        buildWeekSnapshots(registraties.filter((r) => r.Medewerker === myName)),
+        overurenWeken,
+      ),
+    [registraties, overurenWeken, myName],
+  );
+
+  /** Manager: flat list of submitted weeks only */
+  const managerQueue = useMemo(() => {
+    const list = overurenWeken
+      .filter((w) =>
+        showDone
+          ? ['ingediend', 'info_gevraagd', 'goedgekeurd', 'afgewezen'].includes(w.status)
+          : w.status === 'ingediend',
+      )
+      .sort((a, b) => {
+        if (a.status === 'ingediend' && b.status !== 'ingediend') return -1;
+        if (b.status === 'ingediend' && a.status !== 'ingediend') return 1;
+        return b.weekStart.localeCompare(a.weekStart);
+      });
+    return list;
+  }, [overurenWeken, showDone]);
+
+  const pending = overurenWeken.filter((w) => w.status === 'ingediend').length;
 
   if (!ready) {
     return (
@@ -125,119 +105,233 @@ export default function OverurenScreen() {
     );
   }
 
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const bulkApprove = async (verwerking: VerwerkingKeuze) => {
+    const mgr = session?.naam ?? settings.managerNaam;
+    const ids = [...selected];
+    for (const id of ids) {
+      const week = overurenWeken.find((w) => w.id === id && w.status === 'ingediend');
+      if (week) await saveOverurenWeek(approveWeek(week, mgr, verwerking));
+    }
+    setSelected(new Set());
+  };
+
+  const exportWeek = (week: OverurenWeek) => {
+    const rows = week.registratieIds
+      .map((id) => regsById.get(id))
+      .filter(Boolean) as WerkRegistratie[];
+    const csv = weekToCsv(week, rows);
+    const ok = downloadCsv(
+      `overuren-${week.medewerker.replace(/\s+/g, '_')}-${week.weekStart}.csv`,
+      csv,
+    );
+    if (!ok) Alert.alert('Export', 'CSV-download werkt in de browser (web).');
+  };
+
+  // ——— Manager ———
   if (isManager) {
     return (
       <Screen>
         <AppHeader
           title="Controle overuren"
-          subtitle={`${session?.naam ?? 'Manager'} · ${pendingCount} week(en) te controleren bij ${membersWithPending} teamlid(leden)`}
+          subtitle={`${session?.naam ?? 'Manager'} · ${pending} week(en) te controleren`}
         />
         <Content>
           <View style={styles.procedure}>
-            <Text style={styles.procedureTitle}>Per teamlid</Text>
+            <Text style={styles.procedureTitle}>Ingeleverde weken</Text>
             <Text style={styles.procedureStep}>
-              Je ziet alleen weken die medewerkers hebben ingeleverd. Open een
-              teamlid om de weken te controleren die nog openstaan.
+              Alleen weken die medewerkers hebben ingediend. Selecteer meerdere voor
+              bulk-goedkeuring (TVT of uitbetalen).
             </Text>
           </View>
 
           <View style={styles.toggleRow}>
             <Chip
-              label="Alleen te controleren"
-              selected={!showAfgehandeld}
-              onPress={() => setShowAfgehandeld(false)}
+              label="Te controleren"
+              selected={!showDone}
+              onPress={() => setShowDone(false)}
             />
             <Chip
-              label="Ook afgehandeld tonen"
-              selected={showAfgehandeld}
-              onPress={() => setShowAfgehandeld(true)}
+              label="Inclusief afgehandeld"
+              selected={showDone}
+              onPress={() => setShowDone(true)}
             />
           </View>
 
+          {selected.size > 0 ? (
+            <View style={styles.bulkBar}>
+              <Text style={styles.bulkText}>{selected.size} geselecteerd</Text>
+              <Pressable style={styles.bulkBtn} onPress={() => bulkApprove('TVT')}>
+                <Text style={styles.bulkBtnText}>Bulk TVT</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.bulkBtn, { backgroundColor: Brand.accent }]}
+                onPress={() => bulkApprove('Uitbetaling')}>
+                <Text style={styles.bulkBtnText}>Bulk uitbetalen</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
           <FlatList
-            data={
-              showAfgehandeld
-                ? teamGroups
-                : teamGroups.filter((g) => g.teControleren.length > 0)
-            }
-            keyExtractor={(g) => g.medewerker}
+            data={managerQueue}
+            keyExtractor={(w) => w.id}
             contentContainerStyle={styles.list}
             ListEmptyComponent={
-              <Text style={{ textAlign: 'center', color: theme.textMuted, marginTop: 40 }}>
-                {showAfgehandeld
-                  ? 'Nog geen ingeleverde weken.'
-                  : 'Geen weken die nu gecontroleerd moeten worden.'}
-              </Text>
+              <View style={styles.empty}>
+                <Text style={styles.emptyTitle}>
+                  {showDone ? 'Nog geen ingeleverde weken' : 'Niets te controleren'}
+                </Text>
+                <Text style={styles.emptyBody}>
+                  Zodra een medewerker een overuren-week indient, verschijnt die hier.
+                </Text>
+              </View>
             }
-            renderItem={({ item: group }) => {
-              const open = expandedMember === group.medewerker;
-              const weeksToShow = showAfgehandeld
-                ? [...group.teControleren, ...group.afgehandeld]
-                : group.teControleren;
+            renderItem={({ item: week }) => {
+              const rows = week.registratieIds
+                .map((id) => regsById.get(id))
+                .filter(Boolean) as WerkRegistratie[];
+              const summary = summarizeWeekRows(
+                rows,
+                week.overurenKlok,
+                settings.defaultLand,
+                settings.buitenlandToelagePerDag,
+              );
+              const open = expandedId === week.id;
+              const pendingWeek = week.status === 'ingediend';
               return (
-                <View style={styles.memberCard}>
-                  <Pressable
-                    onPress={() =>
-                      setExpandedMember(open ? null : group.medewerker)
-                    }
-                    style={styles.memberHead}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.memberName}>{group.medewerker}</Text>
-                      <Text style={styles.meta}>
-                        {group.teControleren.length > 0
-                          ? `${group.teControleren.length} week(en) te controleren`
-                          : 'Niets openstaand'}
-                        {showAfgehandeld && group.afgehandeld.length > 0
-                          ? ` · ${group.afgehandeld.length} afgehandeld`
-                          : ''}
-                      </Text>
-                    </View>
-                    {group.teControleren.length > 0 ? (
-                      <View style={styles.countBadge}>
-                        <Text style={styles.countBadgeText}>
-                          {group.teControleren.length}
+                <View style={[styles.card, pendingWeek && styles.cardPending]}>
+                  <View style={styles.cardHead}>
+                    {pendingWeek ? (
+                      <Pressable
+                        onPress={() => toggleSelect(week.id)}
+                        style={[
+                          styles.checkbox,
+                          selected.has(week.id) && styles.checkboxOn,
+                        ]}>
+                        <Text style={{ color: '#fff', fontWeight: '800' }}>
+                          {selected.has(week.id) ? '✓' : ''}
                         </Text>
-                      </View>
-                    ) : null}
-                    <Text style={styles.chevron}>{open ? '▾' : '▸'}</Text>
-                  </Pressable>
+                      </Pressable>
+                    ) : (
+                      <View style={{ width: 28 }} />
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.title}>{isoWeekLabel(week.weekStart)}</Text>
+                      <Text style={styles.meta}>{week.medewerker}</Text>
+                    </View>
+                    <StatusBadge status={week.status} />
+                  </View>
 
-                  {open
-                    ? weeksToShow.map((week) => (
-                        <ManagerWeekCard
-                          key={week.id}
-                          week={week}
-                          regsById={regsById}
-                          expanded={expandedWeekId === week.id}
-                          onToggleExpand={() =>
-                            setExpandedWeekId(
-                              expandedWeekId === week.id ? null : week.id,
-                            )
-                          }
-                          onApprove={async (verwerking) => {
-                            await saveOverurenWeek(
+                  <Text style={styles.hours}>
+                    Overuren {formatHours(summary.overurenKlok)} · hotel in/uit{' '}
+                    {summary.hotelBinnenland}/{summary.hotelBuitenland} · toelage €
+                    {Math.round(summary.buitenlandToelageEuro)}
+                  </Text>
+                  {week.opmerking ? (
+                    <Text style={styles.note}>Toelichting: {week.opmerking}</Text>
+                  ) : null}
+
+                  <Timeline week={week} />
+
+                  <View style={styles.rowBtns}>
+                    <Pressable onPress={() => setExpandedId(open ? null : week.id)}>
+                      <Text style={styles.link}>
+                        {open ? 'Verberg details' : 'Details / registraties'}
+                      </Text>
+                    </Pressable>
+                    <Pressable onPress={() => exportWeek(week)}>
+                      <Text style={styles.link}>Export CSV</Text>
+                    </Pressable>
+                  </View>
+
+                  {open ? (
+                    <View style={styles.detailBox}>
+                      {rows.map((r) => (
+                        <Text key={r.RegistratieID} style={styles.detailLine}>
+                          #{r.RegistratieID} {r.Datum} {r.Activiteit} {r.Starttijd}–
+                          {r.Eindtijd} · {formatHours(r.Uren)} · {r.Klant}
+                        </Text>
+                      ))}
+                    </View>
+                  ) : null}
+
+                  {pendingWeek ? (
+                    <View style={styles.managerActions}>
+                      <View style={styles.rowBtns}>
+                        <Pressable
+                          style={styles.secondary}
+                          onPress={() =>
+                            saveOverurenWeek(
                               approveWeek(
                                 week,
                                 session?.naam ?? settings.managerNaam,
-                                verwerking,
+                                'TVT',
                               ),
-                            );
-                          }}
-                          onOpenAction={(mode) => {
+                            )
+                          }>
+                          <Text style={styles.secondaryText}>TVT</Text>
+                        </Pressable>
+                        <Pressable
+                          style={[styles.secondary, styles.accentBtn]}
+                          onPress={() =>
+                            saveOverurenWeek(
+                              approveWeek(
+                                week,
+                                session?.naam ?? settings.managerNaam,
+                                'Uitbetaling',
+                              ),
+                            )
+                          }>
+                          <Text style={styles.secondaryText}>Uitbetalen</Text>
+                        </Pressable>
+                      </View>
+                      <View style={styles.rowBtns}>
+                        <Pressable
+                          style={styles.outlineBtn}
+                          onPress={() => {
                             setActionWeekId(week.id);
-                            setActionMode(mode);
+                            setActionMode('gemengd');
                             setActionText('');
-                          }}
-                        />
-                      ))
-                    : null}
+                          }}>
+                          <Text style={styles.outlineText}>Gemengd…</Text>
+                        </Pressable>
+                        <Pressable
+                          style={styles.outlineBtn}
+                          onPress={() => {
+                            setActionWeekId(week.id);
+                            setActionMode('info');
+                            setActionText('');
+                          }}>
+                          <Text style={styles.outlineText}>Info…</Text>
+                        </Pressable>
+                        <Pressable
+                          style={styles.outlineBtn}
+                          onPress={() => {
+                            setActionWeekId(week.id);
+                            setActionMode('reject');
+                            setActionText('');
+                          }}>
+                          <Text style={[styles.outlineText, { color: Brand.danger }]}>
+                            Afwijzen…
+                          </Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  ) : null}
                 </View>
               );
             }}
           />
         </Content>
-
-        <ManagerActionModal
+        <ActionModal
           actionMode={actionMode}
           actionText={actionText}
           setActionText={setActionText}
@@ -255,41 +349,36 @@ export default function OverurenScreen() {
               );
             } else if (actionMode === 'info') {
               await saveOverurenWeek(
-                requestWeekInfo(
-                  week,
-                  mgr,
-                  actionText.trim() || 'Graag toelichting',
-                ),
+                requestWeekInfo(week, mgr, actionText.trim() || 'Graag toelichting'),
               );
-            } else if (actionMode === 'gemengd') {
+            } else {
               await saveOverurenWeek(
                 approveWeek(
                   week,
                   mgr,
                   'Gemengd',
-                  actionText.trim() || 'Deels TVT, deels uitbetaling',
+                  actionText.trim() || 'Deels TVT / deels uitbetaling',
                 ),
               );
             }
             setActionMode(null);
             setActionWeekId(null);
-            setActionText('');
           }}
         />
       </Screen>
     );
   }
 
-  // ——— Engineer view ———
+  // ——— Engineer ———
   return (
     <Screen>
       <AppHeader
         title="Overuren indienen"
-        subtitle={`Ingelogd als ${myName} · stuur weken door naar je manager`}
+        subtitle={`Ingelogd als ${myName}`}
       />
       <Content>
         <View style={styles.procedure}>
-          <Text style={styles.procedureTitle}>Wat gebeurt er bij indienen?</Text>
+          <Text style={styles.procedureTitle}>Procedure</Text>
           {INDIEN_PROCEDURE.map((step, i) => (
             <Text key={step} style={styles.procedureStep}>
               {i + 1}. {step}
@@ -297,19 +386,47 @@ export default function OverurenScreen() {
           ))}
         </View>
 
+        {reminders.length > 0 ? (
+          <View style={styles.reminder}>
+            <Text style={styles.reminderTitle}>
+              Herinnering: {reminders.length} afgelopen week(en) met overuren nog niet
+              ingediend
+            </Text>
+            {reminders.slice(0, 3).map((r) => (
+              <Text key={r.weekStart} style={styles.reminderLine}>
+                · {isoWeekLabel(r.weekStart)} — {formatHours(r.overurenKlok)} overuren
+              </Text>
+            ))}
+          </View>
+        ) : null}
+
         <FlatList
-          data={engineerWeeks}
-          keyExtractor={(item) => `${item.weekStart}_${item.medewerker}`}
+          data={engineerSnaps}
+          keyExtractor={(i) => `${i.weekStart}_${i.medewerker}`}
           contentContainerStyle={styles.list}
           ListEmptyComponent={
-            <Text style={{ textAlign: 'center', color: theme.textMuted, marginTop: 32 }}>
-              Geen weken met overuren voor jouw account.
-            </Text>
+            <View style={styles.empty}>
+              <Text style={styles.emptyTitle}>Geen overuren-weken</Text>
+              <Text style={styles.emptyBody}>
+                Weken verschijnen hier zodra je registraties hebt die boven de 8-uursnorm
+                (of weekend) uitkomen.
+              </Text>
+            </View>
           }
           renderItem={({ item }) => {
             const sub = item.submission;
             const status: OverurenWeekStatus = sub?.status ?? 'concept';
             const key = `${item.weekStart}_${item.medewerker}`;
+            const rows = item.registratieIds
+              .map((id) => regsById.get(id))
+              .filter(Boolean) as WerkRegistratie[];
+            const summary = summarizeWeekRows(
+              rows,
+              item.overurenKlok,
+              settings.defaultLand,
+              settings.buitenlandToelagePerDag,
+            );
+            const open = expandedId === key;
             return (
               <View style={styles.card}>
                 <View style={styles.cardHead}>
@@ -317,22 +434,40 @@ export default function OverurenScreen() {
                   <StatusBadge status={status} />
                 </View>
                 <Text style={styles.hours}>
-                  Overuren {formatHours(item.overurenKlok)} · compensabel{' '}
-                  {formatHours(item.compensabeleUren)}
+                  Overuren {formatHours(summary.overurenKlok)} · hotel{' '}
+                  {summary.hotelBinnenland + summary.hotelBuitenland} · toelage €
+                  {Math.round(summary.buitenlandToelageEuro)}
                 </Text>
-                <Text style={styles.meta}>
-                  {item.registratieIds.length} registratie(s)
-                </Text>
+                {sub ? <Timeline week={sub} /> : null}
                 {sub?.managerOpmerking ? (
                   <Text style={styles.mgrNote}>Manager: {sub.managerOpmerking}</Text>
                 ) : null}
-                {sub?.afwijzingsReden ? (
-                  <Text style={{ color: Brand.danger, marginTop: 4 }}>
-                    Afgewezen: {sub.afwijzingsReden}
-                  </Text>
-                ) : null}
-                {sub?.verwerking ? (
-                  <Text style={styles.verwerking}>Verwerking: {sub.verwerking}</Text>
+
+                <View style={styles.rowBtns}>
+                  <Pressable onPress={() => setExpandedId(open ? null : key)}>
+                    <Text style={styles.link}>{open ? 'Verberg' : 'Samenvatting'}</Text>
+                  </Pressable>
+                  {sub ? (
+                    <Pressable onPress={() => exportWeek(sub)}>
+                      <Text style={styles.link}>Export CSV</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+                {open ? (
+                  <View style={styles.detailBox}>
+                    <Text style={styles.detailLine}>
+                      Registraties: {summary.registratieCount} · Totaal uren:{' '}
+                      {formatHours(summary.urenTotaal)}
+                    </Text>
+                    <Text style={styles.detailLine}>
+                      Hotel binnenland: {summary.hotelBinnenland} · buitenland:{' '}
+                      {summary.hotelBuitenland}
+                    </Text>
+                    <Text style={styles.detailLine}>
+                      Buitenland-dagen: {summary.buitenlandDagen} · toelage €
+                      {Math.round(summary.buitenlandToelageEuro)}
+                    </Text>
+                  </View>
                 ) : null}
 
                 {(status === 'concept' ||
@@ -342,13 +477,7 @@ export default function OverurenScreen() {
                     style={styles.primary}
                     onPress={() => {
                       setConfirmSnapKey(key);
-                      setSubmitNote(
-                        status === 'info_gevraagd'
-                          ? 'Reactie op manager-vraag'
-                          : status === 'afgewezen'
-                            ? 'Opnieuw ingediend na correctie'
-                            : '',
-                      );
+                      setSubmitNote('');
                     }}>
                     <Text style={styles.primaryText}>
                       {status === 'concept' ? 'Week indienen' : 'Opnieuw indienen'}
@@ -357,8 +486,7 @@ export default function OverurenScreen() {
                 )}
                 {status === 'ingediend' ? (
                   <Text style={[styles.meta, { marginTop: 8 }]}>
-                    Ingediend — je manager ziet deze week bij jouw naam in de
-                    controlijst.
+                    Ingediend — staat bij de manager in de controlijst.
                   </Text>
                 ) : null}
               </View>
@@ -370,17 +498,42 @@ export default function OverurenScreen() {
       <Modal visible={!!confirmSnapKey} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Week indienen?</Text>
-            <Text style={styles.modalBody}>
-              Je manager ziet deze week onder jouw naam als “te controleren”.
-              TVT-saldo wordt niet in deze app bijgewerkt.
-            </Text>
+            <Text style={styles.modalTitle}>Week indienen — samenvatting</Text>
+            {(() => {
+              const snap = engineerSnaps.find(
+                (w) => `${w.weekStart}_${w.medewerker}` === confirmSnapKey,
+              );
+              if (!snap) return null;
+              const rows = snap.registratieIds
+                .map((id) => regsById.get(id))
+                .filter(Boolean) as WerkRegistratie[];
+              const s = summarizeWeekRows(
+                rows,
+                snap.overurenKlok,
+                settings.defaultLand,
+                settings.buitenlandToelagePerDag,
+              );
+              return (
+                <View style={{ gap: 4, marginBottom: 10 }}>
+                  <Text style={styles.modalBody}>{isoWeekLabel(snap.weekStart)}</Text>
+                  <Text style={styles.detailLine}>
+                    Overuren: {formatHours(s.overurenKlok)}
+                  </Text>
+                  <Text style={styles.detailLine}>
+                    Hotelnachten binnen/buiten: {s.hotelBinnenland}/{s.hotelBuitenland}
+                  </Text>
+                  <Text style={styles.detailLine}>
+                    Buitenlandtoelage: €{Math.round(s.buitenlandToelageEuro)} (
+                    {s.buitenlandDagen} dagen)
+                  </Text>
+                  <Text style={styles.detailLine}>
+                    {s.registratieCount} registraties · {formatHours(s.urenTotaal)} totaal
+                  </Text>
+                </View>
+              );
+            })()}
             <FieldLabel>Optionele toelichting</FieldLabel>
-            <FieldInput
-              value={submitNote}
-              onChangeText={setSubmitNote}
-              placeholder="Bijv. weekend storing"
-            />
+            <FieldInput value={submitNote} onChangeText={setSubmitNote} />
             <View style={styles.rowBtns}>
               <Pressable
                 style={[styles.outlineBtn, { flex: 1 }]}
@@ -390,20 +543,17 @@ export default function OverurenScreen() {
               <Pressable
                 style={[styles.primary, { flex: 1, marginTop: 0 }]}
                 onPress={async () => {
-                  const snap = engineerWeeks.find(
+                  const snap = engineerSnaps.find(
                     (w) => `${w.weekStart}_${w.medewerker}` === confirmSnapKey,
                   );
                   if (!snap) return;
                   await saveOverurenWeek(
-                    createSubmissionFromSnapshot(snap, submitNote.trim()),
+                    createSubmissionFromSnapshot(snap, submitNote.trim(), myName),
                   );
                   setConfirmSnapKey(null);
-                  Alert.alert(
-                    'Ingediend',
-                    'Je manager ziet de week nu per teamlid in de controlijst.',
-                  );
+                  Alert.alert('Ingediend', 'De manager ziet je week nu in de controlijst.');
                 }}>
-                <Text style={styles.primaryText}>Bevestig indienen</Text>
+                <Text style={styles.primaryText}>Bevestig</Text>
               </Pressable>
             </View>
           </View>
@@ -413,151 +563,40 @@ export default function OverurenScreen() {
   );
 }
 
-function ManagerWeekCard({
-  week,
-  regsById,
-  expanded,
-  onToggleExpand,
-  onApprove,
-  onOpenAction,
-}: {
-  week: OverurenWeek;
-  regsById: Map<number, WerkRegistratie>;
-  expanded: boolean;
-  onToggleExpand: () => void;
-  onApprove: (v: 'TVT' | 'Uitbetaling') => Promise<void>;
-  onOpenAction: (mode: 'reject' | 'info' | 'gemengd') => void;
-}) {
-  const needsReview = week.status === 'ingediend';
+function Timeline({ week }: { week: OverurenWeek }) {
+  const events =
+    week.audit?.length > 0
+      ? week.audit
+      : [
+          week.ingediendOp
+            ? {
+                at: week.ingediendOp,
+                door: week.medewerker,
+                actie: 'Ingediend',
+              }
+            : null,
+          week.beoordeeldOp
+            ? {
+                at: week.beoordeeldOp,
+                door: week.beoordeeldDoor ?? 'Manager',
+                actie: statusLabel(week.status),
+                detail: week.afwijzingsReden ?? week.managerOpmerking ?? undefined,
+              }
+            : null,
+        ].filter(Boolean);
+  if (!events.length) return null;
   return (
-    <View style={[styles.weekCard, needsReview && styles.weekCardPending]}>
-      <View style={styles.cardHead}>
-        <Text style={styles.title}>{isoWeekLabel(week.weekStart)}</Text>
-        <StatusBadge status={week.status} />
-      </View>
-      <Text style={styles.hours}>
-        Overuren {formatHours(week.overurenKlok)} · compensabel{' '}
-        {formatHours(week.compensabeleUren)}
-      </Text>
-      <Text style={styles.meta}>
-        Ingeleverd{' '}
-        {week.ingediendOp
-          ? new Date(week.ingediendOp).toLocaleString('nl-NL')
-          : '—'}{' '}
-        · {week.registratieIds.length} registratie(s)
-      </Text>
-      {week.opmerking ? (
-        <Text style={styles.note}>Toelichting: {week.opmerking}</Text>
-      ) : null}
-      {week.verwerking ? (
-        <Text style={styles.verwerking}>Verwerking: {week.verwerking}</Text>
-      ) : null}
-
-      <Pressable onPress={onToggleExpand} style={styles.detailToggle}>
-        <Text style={{ color: Brand.primary, fontWeight: '700' }}>
-          {expanded ? 'Verberg registraties' : 'Toon registraties'}
-        </Text>
-      </Pressable>
-      {expanded ? (
-        <View style={styles.detailBox}>
-          {week.registratieIds.map((id) => {
-            const r = regsById.get(id);
-            if (!r) return null;
-            return (
-              <Text key={id} style={styles.detailLine}>
-                #{id} {r.Datum} {r.Activiteit} {r.Starttijd}–{r.Eindtijd} ·{' '}
-                {formatHours(r.Uren)} · {r.Klant}
-              </Text>
-            );
-          })}
-        </View>
-      ) : null}
-
-      {needsReview ? (
-        <View style={styles.managerActions}>
-          <Text style={styles.actionLabel}>Controle afronden</Text>
-          <View style={styles.rowBtns}>
-            <Pressable style={styles.secondary} onPress={() => onApprove('TVT')}>
-              <Text style={styles.secondaryText}>TVT</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.secondary, styles.accentBtn]}
-              onPress={() => onApprove('Uitbetaling')}>
-              <Text style={styles.secondaryText}>Uitbetalen</Text>
-            </Pressable>
-          </View>
-          <View style={styles.rowBtns}>
-            <Pressable style={styles.outlineBtn} onPress={() => onOpenAction('gemengd')}>
-              <Text style={styles.outlineText}>Gemengd…</Text>
-            </Pressable>
-            <Pressable style={styles.outlineBtn} onPress={() => onOpenAction('info')}>
-              <Text style={styles.outlineText}>Info…</Text>
-            </Pressable>
-            <Pressable style={styles.outlineBtn} onPress={() => onOpenAction('reject')}>
-              <Text style={[styles.outlineText, { color: Brand.danger }]}>Afwijzen…</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function ManagerActionModal({
-  actionMode,
-  actionText,
-  setActionText,
-  onCancel,
-  onConfirm,
-}: {
-  actionMode: 'reject' | 'info' | 'gemengd' | null;
-  actionText: string;
-  setActionText: (t: string) => void;
-  onCancel: () => void;
-  onConfirm: () => Promise<void>;
-}) {
-  return (
-    <Modal visible={!!actionMode} transparent animationType="fade">
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard}>
-          <Text style={styles.modalTitle}>
-            {actionMode === 'reject'
-              ? 'Week afwijzen'
-              : actionMode === 'info'
-                ? 'Meer info vragen'
-                : 'Gemengde verwerking'}
+    <View style={styles.timeline}>
+      {events.map((e, i) =>
+        e ? (
+          <Text key={`${e.at}-${i}`} style={styles.timelineLine}>
+            {new Date(e.at).toLocaleString('nl-NL')} — {e.actie}
+            {e.door ? ` (${e.door})` : ''}
+            {e.detail ? `: ${e.detail}` : ''}
           </Text>
-          <FieldLabel>
-            {actionMode === 'reject'
-              ? 'Reden'
-              : actionMode === 'info'
-                ? 'Vraag aan medewerker'
-                : 'Toelichting'}
-          </FieldLabel>
-          <FieldInput
-            value={actionText}
-            onChangeText={setActionText}
-            placeholder="Typ hier…"
-            multiline
-            style={{ minHeight: 72 }}
-          />
-          <View style={styles.rowBtns}>
-            <Pressable style={[styles.outlineBtn, { flex: 1 }]} onPress={onCancel}>
-              <Text style={styles.outlineText}>Annuleren</Text>
-            </Pressable>
-            <Pressable
-              style={[
-                styles.primary,
-                { flex: 1, marginTop: 0 },
-                actionMode === 'reject' && { backgroundColor: Brand.danger },
-              ]}
-              onPress={onConfirm}>
-              <Text style={styles.primaryText}>Bevestigen</Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
-    </Modal>
+        ) : null,
+      )}
+    </View>
   );
 }
 
@@ -577,6 +616,53 @@ function StatusBadge({ status }: { status: OverurenWeekStatus }) {
   );
 }
 
+function ActionModal({
+  actionMode,
+  actionText,
+  setActionText,
+  onCancel,
+  onConfirm,
+}: {
+  actionMode: 'reject' | 'info' | 'gemengd' | null;
+  actionText: string;
+  setActionText: (t: string) => void;
+  onCancel: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  return (
+    <Modal visible={!!actionMode} transparent animationType="fade">
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>
+            {actionMode === 'reject'
+              ? 'Afwijzen'
+              : actionMode === 'info'
+                ? 'Info vragen'
+                : 'Gemengd'}
+          </Text>
+          <FieldInput
+            value={actionText}
+            onChangeText={setActionText}
+            placeholder="Toelichting…"
+            multiline
+            style={{ minHeight: 72 }}
+          />
+          <View style={styles.rowBtns}>
+            <Pressable style={[styles.outlineBtn, { flex: 1 }]} onPress={onCancel}>
+              <Text style={styles.outlineText}>Annuleren</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.primary, { flex: 1, marginTop: 0 }]}
+              onPress={onConfirm}>
+              <Text style={styles.primaryText}>Bevestigen</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
   centered: { alignItems: 'center', justifyContent: 'center' },
   procedure: {
@@ -587,51 +673,46 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15,76,129,0.08)',
     gap: 4,
   },
-  procedureTitle: { fontWeight: '800', marginBottom: 4 },
-  procedureStep: { fontSize: 13, lineHeight: 18, color: Brand.text },
+  procedureTitle: { fontWeight: '800' },
+  procedureStep: { fontSize: 13, lineHeight: 18 },
+  reminder: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: 'rgba(237,125,49,0.15)',
+  },
+  reminderTitle: { fontWeight: '800', marginBottom: 4 },
+  reminderLine: { fontSize: 13 },
   toggleRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
     paddingHorizontal: 16,
     paddingTop: 10,
+    flexWrap: 'wrap',
   },
-  list: { padding: 16, gap: 12, paddingBottom: 48 },
-  memberCard: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: Brand.border,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  memberHead: {
+  bulkBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    padding: 14,
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: Brand.header,
+    borderRadius: 10,
   },
-  memberName: { fontSize: 16, fontWeight: '800' },
-  countBadge: {
-    minWidth: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Brand.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 8,
+  bulkText: { color: '#fff', fontWeight: '700', flex: 1 },
+  bulkBtn: {
+    backgroundColor: Brand.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
-  countBadgeText: { color: '#fff', fontWeight: '800' },
-  chevron: { fontSize: 18, color: Brand.textMuted, width: 20 },
-  weekCard: {
-    borderTopWidth: 1,
-    borderTopColor: Brand.border,
-    padding: 14,
-    gap: 4,
-    backgroundColor: Brand.background,
-  },
-  weekCardPending: {
-    backgroundColor: 'rgba(237,125,49,0.06)',
-  },
+  bulkBtnText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  list: { padding: 16, gap: 12, paddingBottom: 48 },
+  empty: { padding: 32, alignItems: 'center', gap: 8 },
+  emptyTitle: { fontSize: 17, fontWeight: '800' },
+  emptyBody: { textAlign: 'center', color: Brand.textMuted, lineHeight: 20 },
   card: {
     backgroundColor: '#fff',
     borderWidth: 1,
@@ -640,33 +721,41 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 4,
   },
-  cardHead: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  cardPending: { borderColor: Brand.accent, backgroundColor: 'rgba(237,125,49,0.05)' },
+  cardHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  checkbox: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: Brand.border,
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    backgroundColor: '#fff',
   },
-  title: { fontWeight: '800', fontSize: 15, flex: 1 },
+  checkboxOn: { backgroundColor: Brand.primary, borderColor: Brand.primary },
+  title: { fontWeight: '800', fontSize: 15 },
   meta: { fontSize: 12, color: Brand.textMuted },
   hours: { fontSize: 14, fontWeight: '700', color: Brand.primary, marginTop: 4 },
-  note: { marginTop: 4, fontSize: 13, fontStyle: 'italic' },
-  mgrNote: { marginTop: 4, fontSize: 13, color: Brand.primary, fontWeight: '600' },
-  verwerking: { marginTop: 4, fontWeight: '700', color: Brand.secondary },
+  note: { fontStyle: 'italic', fontSize: 13 },
+  mgrNote: { color: Brand.primary, fontWeight: '600', fontSize: 13 },
   badge: {
     borderWidth: 1,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  detailToggle: { marginTop: 8 },
+  timeline: { marginTop: 6, gap: 2 },
+  timelineLine: { fontSize: 11, color: Brand.textMuted },
+  link: { color: Brand.primary, fontWeight: '700', fontSize: 13 },
   detailBox: {
     marginTop: 6,
     padding: 10,
     borderRadius: 8,
-    backgroundColor: '#fff',
+    backgroundColor: Brand.background,
     gap: 4,
   },
-  detailLine: { fontSize: 12, color: Brand.text },
+  detailLine: { fontSize: 12 },
   primary: {
     marginTop: 10,
     backgroundColor: Brand.primary,
@@ -676,8 +765,7 @@ const styles = StyleSheet.create({
   },
   primaryText: { color: '#fff', fontWeight: '700' },
   managerActions: { marginTop: 10, gap: 8 },
-  actionLabel: { fontWeight: '700', fontSize: 13 },
-  rowBtns: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  rowBtns: { flexDirection: 'row', gap: 8, marginTop: 8, alignItems: 'center' },
   secondary: {
     flex: 1,
     backgroundColor: Brand.primary,
@@ -703,11 +791,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 20,
   },
-  modalCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 18,
-  },
+  modalCard: { backgroundColor: '#fff', borderRadius: 16, padding: 18 },
   modalTitle: { fontSize: 18, fontWeight: '800', marginBottom: 8 },
-  modalBody: { fontSize: 14, lineHeight: 20, color: Brand.textMuted, marginBottom: 8 },
+  modalBody: { fontSize: 14, color: Brand.textMuted, marginBottom: 4 },
 });

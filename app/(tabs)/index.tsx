@@ -25,6 +25,7 @@ import {
   computeKpis,
   formatHours,
   hotelBinnenVsBuiten,
+  kostenOverzichtPerMaand,
   overurenPerMaand,
   topKlanten,
   uniqueSorted,
@@ -80,6 +81,24 @@ export default function DashboardScreen() {
     [registraties, overurenWeken, filters, settings],
   );
   const chartYear = filters.jaar === 'all' ? new Date().getFullYear() : filters.jaar;
+  const kosten = useMemo(
+    () =>
+      kostenOverzichtPerMaand(
+        filtered,
+        chartYear,
+        settings.defaultLand,
+        settings.buitenlandToelagePerDag,
+      ),
+    [filtered, chartYear, settings.defaultLand, settings.buitenlandToelagePerDag],
+  );
+  const kostenTotaal = useMemo(
+    () => ({
+      toelage: Math.round(kosten.reduce((s, m) => s + m.toelageEuro, 0)),
+      hotelIn: kosten.reduce((s, m) => s + m.hotelBinnenland, 0),
+      hotelUit: kosten.reduce((s, m) => s + m.hotelBuitenland, 0),
+    }),
+    [kosten],
+  );
 
   if (!ready) {
     return (
@@ -260,6 +279,27 @@ export default function DashboardScreen() {
             />
           </View>
 
+          <Text style={styles.section}>Kostenoverzicht ({chartYear})</Text>
+          <Card style={styles.costCard}>
+            <Text style={styles.chartHint}>
+              Planning: buitenlandtoelage + hotelnachten (geen hotelprijs in deze app)
+            </Text>
+            <Text style={styles.costTotal}>
+              Toelage €{kostenTotaal.toelage.toLocaleString('nl-NL')} · hotel in/uit{' '}
+              {kostenTotaal.hotelIn}/{kostenTotaal.hotelUit}
+            </Text>
+            {kosten.map((m) => (
+              <View key={m.name} style={styles.costRow}>
+                <Text style={styles.costMonth}>{m.name}</Text>
+                <Text style={styles.costCell}>€{Math.round(m.toelageEuro)}</Text>
+                <Text style={styles.costCell}>
+                  H {m.hotelBinnenland}/{m.hotelBuitenland}
+                </Text>
+                <Text style={styles.costCell}>{m.buitenlandDagen}d uit</Text>
+              </View>
+            ))}
+          </Card>
+
           <Text style={styles.section}>Grafieken</Text>
           <View style={styles.charts}>
             <Card style={styles.chartCard}>
@@ -345,4 +385,15 @@ const styles = StyleSheet.create({
   },
   chartTitle: { fontSize: 15, fontWeight: '700', marginBottom: 4 },
   chartHint: { fontSize: 12, color: Brand.textMuted, marginBottom: 6 },
+  costCard: { padding: 14, gap: 6 },
+  costTotal: { fontWeight: '800', color: Brand.accent, marginBottom: 4 },
+  costRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Brand.border,
+  },
+  costMonth: { width: 44, fontWeight: '700', color: Brand.text },
+  costCell: { flex: 1, fontSize: 13, color: Brand.textMuted },
 });

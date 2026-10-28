@@ -62,6 +62,13 @@ export type OverurenWeekStatus =
 /** After manager approval: TVT bank (other system) or payout allowance */
 export type VerwerkingKeuze = 'TVT' | 'Uitbetaling' | 'Gemengd';
 
+export type AuditEvent = {
+  at: string;
+  door: string;
+  actie: string;
+  detail?: string;
+};
+
 export type OverurenWeek = {
   id: string;
   weekStart: string; // Monday YYYY-MM-DD
@@ -83,6 +90,8 @@ export type OverurenWeek = {
   opmerking: string;
   /** Manager question / comment (e.g. info_gevraagd) */
   managerOpmerking: string | null;
+  /** Chronological status history */
+  audit: AuditEvent[];
 };
 
 export type AppRol = 'medewerker' | 'manager';

@@ -15,8 +15,11 @@ import {
 import { useAppData } from '@/context/AppDataContext';
 import {
   ACTIVITEITEN,
+  REGISTRATIE_TEMPLATES,
   computeUren,
   formatHours,
+  toelagePreview,
+  validateRegistratieInput,
   type Activiteit,
 } from '@/domain';
 import { Brand } from '@/constants/Colors';
@@ -27,7 +30,7 @@ function today() {
 
 export default function NewRegistratieScreen() {
   const theme = useTheme();
-  const { ready, settings, saveRegistratie } = useAppData();
+  const { ready, settings, registraties, saveRegistratie } = useAppData();
   const [Datum, setDatum] = useState(today);
   const [Medewerker, setMedewerker] = useState(settings.medewerkerNaam);
   const [Klant, setKlant] = useState('');
@@ -48,12 +51,69 @@ export default function NewRegistratieScreen() {
     [Starttijd, Eindtijd, PauzeMinuten],
   );
 
+  const issues = useMemo(
+    () =>
+      validateRegistratieInput(
+        {
+          Datum,
+          Starttijd,
+          Eindtijd,
+          PauzeMinuten: Number(PauzeMinuten) || 0,
+          Activiteit,
+          Klant,
+          Land,
+          Hotelnacht,
+        },
+        registraties,
+        settings.defaultLand,
+      ),
+    [
+      Datum,
+      Starttijd,
+      Eindtijd,
+      PauzeMinuten,
+      Activiteit,
+      Klant,
+      Land,
+      Hotelnacht,
+      registraties,
+      settings.defaultLand,
+    ],
+  );
+
+  const sameDay = useMemo(
+    () => registraties.filter((r) => r.Datum === Datum),
+    [registraties, Datum],
+  );
+
+  const toelageHint = useMemo(
+    () =>
+      toelagePreview(
+        Land,
+        settings.defaultLand,
+        settings.buitenlandToelagePerDag,
+        sameDay,
+      ),
+    [Land, settings.defaultLand, settings.buitenlandToelagePerDag, sameDay],
+  );
+
+  const applyTemplate = (id: string) => {
+    const t = REGISTRATIE_TEMPLATES.find((x) => x.id === id);
+    if (!t) return;
+    setActiviteit(t.Activiteit);
+    setStart(t.Starttijd);
+    setEind(t.Eindtijd);
+    setPauze(String(t.PauzeMinuten));
+    setHotel(t.Hotelnacht);
+  };
+
   const onSave = async () => {
     setBusy(true);
     setError(null);
     try {
-      if (!Klant.trim()) {
-        setError('Klant is verplicht.');
+      const blocking = issues.filter((i) => i.level === 'error');
+      if (blocking.length) {
+        setError(blocking[0].message);
         return;
       }
       await saveRegistratie({
@@ -84,6 +144,13 @@ export default function NewRegistratieScreen() {
     <Screen>
       <Content>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <FieldLabel>Sjabloon</FieldLabel>
+          <View style={styles.chips}>
+            {REGISTRATIE_TEMPLATES.map((t) => (
+              <Chip key={t.id} label={t.label} onPress={() => applyTemplate(t.id)} />
+            ))}
+          </View>
+
           <FieldLabel>Datum</FieldLabel>
           <FieldInput value={Datum} onChangeText={setDatum} placeholder="YYYY-MM-DD" />
 
@@ -144,16 +211,38 @@ export default function NewRegistratieScreen() {
             style={{ minHeight: 72 }}
           />
 
-          <Text style={{ marginTop: 12, color: theme.textMuted }}>
-            Berekende uren: {formatHours(previewUren)} (compensatie volgt bij opslaan)
-          </Text>
+          <View style={styles.previewBox}>
+            <Text style={{ color: theme.textMuted }}>
+              Berekende uren: {formatHours(previewUren)} (compensatie volgt bij opslaan)
+            </Text>
+            {toelageHint ? (
+              <Text style={styles.toelageHint}>{toelageHint}</Text>
+            ) : (
+              <Text style={{ color: theme.textMuted, marginTop: 4 }}>
+                Geen buitenlandtoelage (thuisland of leeg land).
+              </Text>
+            )}
+          </View>
+
+          {issues.map((issue, i) => (
+            <Text
+              key={`${issue.level}-${i}`}
+              style={{
+                color: issue.level === 'error' ? theme.danger : Brand.accent,
+                marginTop: 6,
+                fontWeight: '600',
+              }}>
+              {issue.level === 'error' ? '✗ ' : '⚠ '}
+              {issue.message}
+            </Text>
+          ))}
 
           {error ? <Text style={{ color: theme.danger, marginTop: 8 }}>{error}</Text> : null}
 
           <PrimaryButton
             label={busy ? 'Opslaan…' : 'Registratie Opslaan'}
             onPress={onSave}
-            disabled={busy}
+            disabled={busy || issues.some((i) => i.level === 'error')}
           />
         </ScrollView>
       </Content>
@@ -169,5 +258,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  previewBox: {
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#EEF4FA',
+    borderWidth: 1,
+    borderColor: Brand.border,
+  },
+  toelageHint: {
+    marginTop: 6,
+    color: Brand.accent,
+    fontWeight: '700',
   },
 });

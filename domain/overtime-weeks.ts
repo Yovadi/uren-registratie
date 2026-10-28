@@ -125,12 +125,23 @@ export function mergeWeeksWithSubmissions(
   });
 }
 
+function pushAudit(
+  week: OverurenWeek,
+  door: string,
+  actie: string,
+  detail?: string,
+): OverurenWeek {
+  const audit = [...(week.audit ?? []), { at: new Date().toISOString(), door, actie, detail }];
+  return { ...week, audit };
+}
+
 export function createSubmissionFromSnapshot(
   snap: WeekSnapshot,
   note = '',
+  door = snap.medewerker,
 ): OverurenWeek {
   const now = new Date().toISOString();
-  return {
+  const base: OverurenWeek = {
     id: weekKey(snap.weekStart, snap.medewerker),
     weekStart: snap.weekStart,
     weekEnd: snap.weekEnd,
@@ -147,7 +158,9 @@ export function createSubmissionFromSnapshot(
     verwerkingToelichting: null,
     opmerking: note,
     managerOpmerking: null,
+    audit: [],
   };
+  return pushAudit(base, door, 'Ingediend', note || undefined);
 }
 
 export function approveWeek(
@@ -156,16 +169,21 @@ export function approveWeek(
   verwerking: VerwerkingKeuze,
   toelichting: string | null = null,
 ): OverurenWeek {
-  return {
-    ...week,
-    status: 'goedgekeurd',
-    verwerking,
-    verwerkingToelichting: toelichting,
-    beoordeeldOp: new Date().toISOString(),
-    beoordeeldDoor: managerNaam,
-    afwijzingsReden: null,
-    managerOpmerking: week.managerOpmerking,
-  };
+  return pushAudit(
+    {
+      ...week,
+      status: 'goedgekeurd',
+      verwerking,
+      verwerkingToelichting: toelichting,
+      beoordeeldOp: new Date().toISOString(),
+      beoordeeldDoor: managerNaam,
+      afwijzingsReden: null,
+      managerOpmerking: week.managerOpmerking,
+    },
+    managerNaam,
+    `Goedgekeurd (${verwerking})`,
+    toelichting ?? undefined,
+  );
 }
 
 export function rejectWeek(
@@ -173,15 +191,20 @@ export function rejectWeek(
   managerNaam: string,
   reden: string,
 ): OverurenWeek {
-  return {
-    ...week,
-    status: 'afgewezen',
-    verwerking: null,
-    verwerkingToelichting: null,
-    beoordeeldOp: new Date().toISOString(),
-    beoordeeldDoor: managerNaam,
-    afwijzingsReden: reden,
-  };
+  return pushAudit(
+    {
+      ...week,
+      status: 'afgewezen',
+      verwerking: null,
+      verwerkingToelichting: null,
+      beoordeeldOp: new Date().toISOString(),
+      beoordeeldDoor: managerNaam,
+      afwijzingsReden: reden,
+    },
+    managerNaam,
+    'Afgewezen',
+    reden,
+  );
 }
 
 /** Manager asks engineer to clarify / correct — week returns to engineer. */
@@ -190,16 +213,37 @@ export function requestWeekInfo(
   managerNaam: string,
   vraag: string,
 ): OverurenWeek {
-  return {
-    ...week,
-    status: 'info_gevraagd',
-    beoordeeldOp: new Date().toISOString(),
-    beoordeeldDoor: managerNaam,
-    managerOpmerking: vraag,
-    afwijzingsReden: null,
-    verwerking: null,
-    verwerkingToelichting: null,
-  };
+  return pushAudit(
+    {
+      ...week,
+      status: 'info_gevraagd',
+      beoordeeldOp: new Date().toISOString(),
+      beoordeeldDoor: managerNaam,
+      managerOpmerking: vraag,
+      afwijzingsReden: null,
+      verwerking: null,
+      verwerkingToelichting: null,
+    },
+    managerNaam,
+    'Info gevraagd',
+    vraag,
+  );
+}
+
+/** Weeks with overtime not yet submitted for completed past weeks (reminder). */
+export function unsubmittedPastWeeks(
+  snapshots: WeekSnapshot[],
+  submissions: OverurenWeek[],
+  today = new Date(),
+): WeekSnapshot[] {
+  const todayStr = today.toISOString().slice(0, 10);
+  return snapshots.filter((s) => {
+    if (s.weekEnd >= todayStr) return false; // current/future week
+    const sub = submissions.find(
+      (w) => w.weekStart === s.weekStart && w.medewerker === s.medewerker,
+    );
+    return !sub || sub.status === 'concept';
+  });
 }
 
 export function statusLabel(status: OverurenWeekStatus): string {

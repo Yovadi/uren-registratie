@@ -64,6 +64,43 @@ export function buitenlandToelagePerMaand(
   }));
 }
 
+/** Monthly planning overview: toelage € + hotel nights. */
+export function kostenOverzichtPerMaand(
+  rows: WerkRegistratie[],
+  jaar: number,
+  thuisLand: string,
+  tariefPerDag: number,
+): Array<{
+  name: string;
+  toelageEuro: number;
+  hotelBinnenland: number;
+  hotelBuitenland: number;
+  buitenlandDagen: number;
+}> {
+  const months = Array.from({ length: 12 }, (_, i) => ({
+    name: new Date(2000, i, 1).toLocaleString('nl-NL', { month: 'short' }),
+    days: new Set<string>(),
+    hotelBinnenland: 0,
+    hotelBuitenland: 0,
+  }));
+  for (const r of rows) {
+    if (Number(r.Datum.slice(0, 4)) !== jaar) continue;
+    const m = Number(r.Datum.slice(5, 7)) - 1;
+    if (isBuitenland(r.Land, thuisLand)) months[m].days.add(r.Datum);
+    if (r.Hotelnacht) {
+      if (isBuitenland(r.Land, thuisLand)) months[m].hotelBuitenland += 1;
+      else months[m].hotelBinnenland += 1;
+    }
+  }
+  return months.map((x) => ({
+    name: x.name,
+    toelageEuro: round2(x.days.size * tariefPerDag),
+    hotelBinnenland: x.hotelBinnenland,
+    hotelBuitenland: x.hotelBuitenland,
+    buitenlandDagen: x.days.size,
+  }));
+}
+
 export function hotelPerLand(
   rows: WerkRegistratie[],
   thuisLand: string,
