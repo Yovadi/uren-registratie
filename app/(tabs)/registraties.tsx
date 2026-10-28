@@ -12,7 +12,13 @@ import {
 import { Text } from '@/components/Themed';
 import { AppHeader, Chip, Content, Screen, useTheme } from '@/components/ui';
 import { useAppData } from '@/context/AppDataContext';
-import { formatHours, isoWeekEnd, isoWeekStart, type WerkRegistratie } from '@/domain';
+import {
+  formatHours,
+  isoWeekEnd,
+  isoWeekNumber,
+  isoWeekStart,
+  type WerkRegistratie,
+} from '@/domain';
 import { Brand } from '@/constants/Colors';
 
 const DAY_LABELS = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
@@ -100,7 +106,8 @@ export default function RegistratiesScreen() {
                 <Text style={styles.navBtn}>← Vorige</Text>
               </Pressable>
               <Text style={styles.weekLabel}>
-                {formatDay(weekStart)} – {formatDay(weekEnd)}
+                Week {isoWeekNumber(weekStart)} · {formatDay(weekStart)} –{' '}
+                {formatDay(weekEnd)}
               </Text>
               <Pressable
                 onPress={() => {

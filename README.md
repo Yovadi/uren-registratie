@@ -10,11 +10,10 @@ Expo-app (web + iOS/Android) voor Field Service Engineers, Service Managers en P
 
 ## Procedure overuren
 1. Medewerker registreert uren (sjablonen, weekkalender, validaties).
-2. Weken mét overuren verschijnen onder **Overuren** (badge + herinnering).
-3. **Week indienen** = doorsturen naar manager (samenvatting + CSV-export).
-4. Manager ziet één platte wachtrij (één service team), bulk-goedkeuren, tijdlijn/audit.
-5. Manager kiest: **TVT**, **Uitbetalen**, **Gemengd**, **Info vragen** of **Afwijzen**.
-6. TVT-saldo / loonstrook blijven in andere systemen.
+2. Weken mét overuren verschijnen onder **Overuren** op **weeknummer** (badge + herinnering).
+3. Bij **Week indienen** kiest de medewerker **TVT** of **Uitbetalen**.
+4. Manager ziet één platte wachtrij en kan alleen **accepteren** of **afwijzen** (bulk-accepteren mogelijk).
+5. TVT-saldo / loonstrook blijven in andere systemen.
 
 ## Starten
 ```bash

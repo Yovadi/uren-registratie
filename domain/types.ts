@@ -59,8 +59,8 @@ export type OverurenWeekStatus =
   | 'goedgekeurd'
   | 'afgewezen';
 
-/** After manager approval: TVT bank (other system) or payout allowance */
-export type VerwerkingKeuze = 'TVT' | 'Uitbetaling' | 'Gemengd';
+/** Chosen by the engineer on submit — manager only accepts or rejects */
+export type VerwerkingKeuze = 'TVT' | 'Uitbetaling';
 
 export type AuditEvent = {
   at: string;
@@ -82,9 +82,9 @@ export type OverurenWeek = {
   beoordeeldOp: string | null;
   beoordeeldDoor: string | null;
   afwijzingsReden: string | null;
-  /** Set when manager approves */
+  /** Set by engineer when submitting (TVT or uitbetaling) */
   verwerking: VerwerkingKeuze | null;
-  /** Optional split note when verwerking = Gemengd */
+  /** Optional note about the chosen processing */
   verwerkingToelichting: string | null;
   /** Engineer note on submit */
   opmerking: string;

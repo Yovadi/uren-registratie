@@ -112,8 +112,8 @@ export default function LoginScreen() {
         </View>
 
         <Text style={styles.footer}>
-          Na indienen van een overuren-week ziet de manager die in de wachtrij en kan
-          goedkeuren (TVT / uitbetaling), info vragen of afwijzen.
+          Medewerker kiest bij indienen TVT of uitbetalen. De manager ziet de week op
+          weeknummer in de wachtrij en kan alleen accepteren of afwijzen.
         </Text>
       </ScrollView>
     </Screen>

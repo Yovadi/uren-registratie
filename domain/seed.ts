@@ -4,7 +4,6 @@ import {
   createSubmissionFromSnapshot,
   approveWeek,
   rejectWeek,
-  requestWeekInfo,
 } from './overtime-weeks';
 import type { OverurenWeek, WerkRegistratie } from './types';
 
@@ -146,23 +145,18 @@ export function buildSeedRegistraties(now = new Date()): WerkRegistratie[] {
 export function buildSeedOverurenWeken(registraties: WerkRegistratie[]): OverurenWeek[] {
   const snaps = buildWeekSnapshots(registraties).slice(0, 12);
   return snaps.map((snap, i) => {
-    const submitted = createSubmissionFromSnapshot(snap, 'Demo-indiening (vervangt Excel-week)');
-    if (i % 4 === 0) {
-      return approveWeek(
-        submitted,
-        'Service Manager',
-        i % 2 === 0 ? 'TVT' : 'Uitbetaling',
-      );
+    const keuze = i % 2 === 0 ? 'TVT' : 'Uitbetaling';
+    const submitted = createSubmissionFromSnapshot(
+      snap,
+      'Demo-indiening (vervangt Excel-week)',
+      snap.medewerker,
+      keuze,
+    );
+    if (i % 3 === 0) {
+      return approveWeek(submitted, 'Service Manager');
     }
-    if (i % 4 === 1) {
+    if (i % 3 === 1) {
       return rejectWeek(submitted, 'Service Manager', 'Pauze niet correct; graag corrigeren');
-    }
-    if (i % 4 === 2) {
-      return requestWeekInfo(
-        submitted,
-        'Service Manager',
-        'Klopt de hotelnacht van dinsdag? Graag bevestigen.',
-      );
     }
     return submitted;
   });

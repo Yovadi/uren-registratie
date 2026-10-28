@@ -3,7 +3,15 @@ import { isoWeekLabel } from './overtime-weeks';
 
 /** Build CSV for a week (Excel-compatible). */
 export function weekToCsv(
-  week: Pick<OverurenWeek, 'weekStart' | 'weekEnd' | 'medewerker' | 'overurenKlok' | 'compensabeleUren'>,
+  week: Pick<
+    OverurenWeek,
+    | 'weekStart'
+    | 'weekEnd'
+    | 'medewerker'
+    | 'overurenKlok'
+    | 'compensabeleUren'
+    | 'verwerking'
+  >,
   rows: WerkRegistratie[],
 ): string {
   const header = [
@@ -48,6 +56,7 @@ export function weekToCsv(
   lines.push('');
   lines.push(`Week;${isoWeekLabel(week.weekStart)}`);
   lines.push(`Medewerker;${csv(week.medewerker)}`);
+  lines.push(`Verwerking;${week.verwerking ?? ''}`);
   lines.push(`Overuren;${String(week.overurenKlok).replace('.', ',')}`);
   lines.push(`Compensabel;${String(week.compensabeleUren).replace('.', ',')}`);
   return '\uFEFF' + lines.join('\n');

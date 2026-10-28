@@ -233,7 +233,7 @@ export default function DashboardScreen() {
               tone="accent"
             />
             <KpiTile
-              label="Weken goedgekeurd"
+              label="Weken geaccepteerd"
               value={String(kpis.wekenGoedgekeurd)}
               icon="checkmark-circle-outline"
               tone="secondary"

@@ -32,21 +32,38 @@ export function isoWeekEnd(weekStart: string): string {
   return `${y}-${m}-${dd}`;
 }
 
-export function isoWeekLabel(weekStart: string): string {
-  const end = isoWeekEnd(weekStart);
+/** ISO week number (1–53) for a Monday week-start date. */
+export function isoWeekNumber(weekStart: string): number {
   const d = new Date(`${weekStart}T12:00:00`);
   const tmp = new Date(d.getTime());
   tmp.setDate(tmp.getDate() + 3 - ((tmp.getDay() + 6) % 7));
   const week1 = new Date(tmp.getFullYear(), 0, 4);
-  const weekNo =
+  return (
     1 +
     Math.round(
       ((tmp.getTime() - week1.getTime()) / 86400000 -
         3 +
         ((week1.getDay() + 6) % 7)) /
         7,
-    );
-  return `Week ${weekNo} · ${weekStart} t/m ${end}`;
+    )
+  );
+}
+
+/** ISO week-year (may differ from calendar year near Jan 1). */
+export function isoWeekYear(weekStart: string): number {
+  const d = new Date(`${weekStart}T12:00:00`);
+  const tmp = new Date(d.getTime());
+  tmp.setDate(tmp.getDate() + 3 - ((tmp.getDay() + 6) % 7));
+  return tmp.getFullYear();
+}
+
+/** Primary label: “Week 12 · 2026” (+ optional date range). */
+export function isoWeekLabel(weekStart: string, withDates = true): string {
+  const n = isoWeekNumber(weekStart);
+  const y = isoWeekYear(weekStart);
+  const base = `Week ${n} · ${y}`;
+  if (!withDates) return base;
+  return `${base} (${weekStart} t/m ${isoWeekEnd(weekStart)})`;
 }
 
 function overurenForRows(rows: WerkRegistratie[]): number {
@@ -139,6 +156,7 @@ export function createSubmissionFromSnapshot(
   snap: WeekSnapshot,
   note = '',
   door = snap.medewerker,
+  verwerking: VerwerkingKeuze = 'TVT',
 ): OverurenWeek {
   const now = new Date().toISOString();
   const base: OverurenWeek = {
@@ -154,35 +172,35 @@ export function createSubmissionFromSnapshot(
     beoordeeldOp: null,
     beoordeeldDoor: null,
     afwijzingsReden: null,
-    verwerking: null,
+    verwerking,
     verwerkingToelichting: null,
     opmerking: note,
     managerOpmerking: null,
     audit: [],
   };
-  return pushAudit(base, door, 'Ingediend', note || undefined);
+  return pushAudit(
+    base,
+    door,
+    `Ingediend (${verwerking})`,
+    note || undefined,
+  );
 }
 
-export function approveWeek(
-  week: OverurenWeek,
-  managerNaam: string,
-  verwerking: VerwerkingKeuze,
-  toelichting: string | null = null,
-): OverurenWeek {
+/** Manager accepts — keeps the engineer's TVT / uitbetaling choice. */
+export function approveWeek(week: OverurenWeek, managerNaam: string): OverurenWeek {
+  const verwerking = week.verwerking ?? 'TVT';
   return pushAudit(
     {
       ...week,
       status: 'goedgekeurd',
       verwerking,
-      verwerkingToelichting: toelichting,
       beoordeeldOp: new Date().toISOString(),
       beoordeeldDoor: managerNaam,
       afwijzingsReden: null,
       managerOpmerking: week.managerOpmerking,
     },
     managerNaam,
-    `Goedgekeurd (${verwerking})`,
-    toelichting ?? undefined,
+    `Geaccepteerd (${verwerking})`,
   );
 }
 
@@ -255,7 +273,7 @@ export function statusLabel(status: OverurenWeekStatus): string {
     case 'info_gevraagd':
       return 'Info gevraagd';
     case 'goedgekeurd':
-      return 'Goedgekeurd';
+      return 'Geaccepteerd';
     case 'afgewezen':
       return 'Afgewezen';
   }
@@ -277,8 +295,8 @@ export function hasWorkOrTravel(rows: WerkRegistratie[]): boolean {
 /** Procedure steps for UI */
 export const INDIEN_PROCEDURE = [
   'Je registreert uren in de app (zoals voorheen in Excel).',
-  'Alleen weken mét overuren verschijnen hier.',
-  'Met “Week indienen” stuur je die week naar je manager.',
-  'De manager controleert en kiest: TVT, uitbetaling, info vragen of afwijzen.',
+  'Alleen weken mét overuren verschijnen hier (op weeknummer).',
+  'Bij indienen kies jij: TVT of uitbetalen.',
+  'De manager controleert alleen: accepteren of afwijzen.',
   'TVT-saldo / loonstrook worden in andere systemen verwerkt — niet in deze app.',
 ] as const;

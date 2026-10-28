@@ -12,7 +12,7 @@ import type {
 } from '@/domain/types';
 import type { FieldServiceStore } from './types';
 
-const KEY = 'hotraco-speria-fsm:v2';
+const KEY = 'hotraco-speria-fsm:v3';
 
 type Snapshot = {
   version: 2;
