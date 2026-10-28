@@ -1,11 +1,11 @@
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
 
 import { Text } from '@/components/Themed';
 import {
   AppHeader,
-  Chip,
   Content,
   FieldInput,
   FieldLabel,
@@ -13,24 +13,45 @@ import {
   Screen,
 } from '@/components/ui';
 import { useAppData } from '@/context/AppDataContext';
+import { useAuth } from '@/context/AuthContext';
 import { Brand } from '@/constants/Colors';
-import type { AppRol } from '@/domain';
-import { useState } from 'react';
 
 export default function MeerScreen() {
+  const { session, logout } = useAuth();
   const { settings, saveSettings, resetDemoData } = useAppData();
-  const [naam, setNaam] = useState(settings.medewerkerNaam);
-  const [manager, setManager] = useState(settings.managerNaam);
-  const [rol, setRol] = useState<AppRol>(settings.rol ?? 'medewerker');
   const [land, setLand] = useState(settings.defaultLand);
   const [tarief, setTarief] = useState(String(settings.buitenlandToelagePerDag ?? 55));
   const [saved, setSaved] = useState(false);
 
   return (
     <Screen>
-      <AppHeader title="Meer" subtitle="Analyses & instellingen" />
+      <AppHeader
+        title="Meer"
+        subtitle={
+          session
+            ? `${session.naam} · ${session.rol}`
+            : 'Analyses & instellingen'
+        }
+      />
       <Content>
         <ScrollView contentContainerStyle={styles.scroll}>
+          <View style={styles.account}>
+            <Text style={styles.section}>Account</Text>
+            <Text style={styles.hint}>
+              Ingelogd als <Text style={{ fontWeight: '700' }}>{session?.naam}</Text> (
+              {session?.rol}). Managers zien de goedkeuringswachtrij; medewerkers dienen
+              weken in.
+            </Text>
+            <Pressable
+              style={styles.logout}
+              onPress={() => {
+                logout();
+                router.replace('/login');
+              }}>
+              <Text style={{ color: Brand.primary, fontWeight: '700' }}>Uitloggen / wissel gebruiker</Text>
+            </Pressable>
+          </View>
+
           <Text style={styles.section}>Analyse</Text>
           <LinkRow href="/analyse/klant" icon="business-outline" label="Klantanalyse" />
           <LinkRow href="/analyse/project" icon="folder-outline" label="Projectanalyse" />
@@ -40,34 +61,11 @@ export default function MeerScreen() {
             label="Hotel & buitenlandtoelage"
           />
 
-          <Text style={styles.section}>Rol (demo)</Text>
-          <View style={styles.chips}>
-            <Chip
-              label="Medewerker"
-              selected={rol === 'medewerker'}
-              onPress={() => setRol('medewerker')}
-            />
-            <Chip
-              label="Manager"
-              selected={rol === 'manager'}
-              onPress={() => setRol('manager')}
-            />
-          </View>
-          <Text style={styles.hint}>
-            Medewerker dient overuren-weken in. Manager keurt goed en kiest TVT of
-            uitbetaling (verwerking gebeurt in andere systemen).
-          </Text>
-
           <Text style={styles.section}>Instellingen</Text>
-          <FieldLabel>Medewerkernaam</FieldLabel>
-          <FieldInput value={naam} onChangeText={setNaam} />
-          <FieldLabel>Managernaam</FieldLabel>
-          <FieldInput value={manager} onChangeText={setManager} />
           <FieldLabel>Thuisland</FieldLabel>
           <FieldInput value={land} onChangeText={setLand} />
           <Text style={styles.hint}>
-            Thuisland bepaalt of een hotelnacht binnen- of buitenland is, en of
-            buitenlandtoelage telt.
+            Bepaalt hotel binnen-/buitenland en buitenlandtoelage.
           </Text>
           <FieldLabel>Buitenlandtoelage (€ / dag)</FieldLabel>
           <FieldInput
@@ -81,9 +79,6 @@ export default function MeerScreen() {
               const n = Number(String(tarief).replace(',', '.'));
               await saveSettings({
                 ...settings,
-                rol,
-                medewerkerNaam: naam.trim() || settings.medewerkerNaam,
-                managerNaam: manager.trim() || settings.managerNaam,
                 defaultLand: land.trim() || settings.defaultLand,
                 buitenlandToelagePerDag: Number.isFinite(n) && n >= 0 ? n : 55,
               });
@@ -93,7 +88,7 @@ export default function MeerScreen() {
 
           <Text style={[styles.section, { marginTop: 24 }]}>Demo data</Text>
           <Text style={styles.hint}>
-            De app bevat ~5 jaar seed-data voor KPI’s en grafieken. Reset herlaadt de demo.
+            Reset herlaadt ~5 jaar seed-data en wist lokale demo-opslag.
           </Text>
           <Pressable style={styles.reset} onPress={() => resetDemoData()}>
             <Text style={{ color: Brand.danger, fontWeight: '700' }}>Reset demo-data</Text>
@@ -128,8 +123,8 @@ function LinkRow({
 
 const styles = StyleSheet.create({
   scroll: { padding: 16, paddingBottom: 48 },
+  account: { marginBottom: 8 },
   section: { fontSize: 16, fontWeight: '800', marginTop: 8, marginBottom: 8 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
   linkRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -151,6 +146,14 @@ const styles = StyleSheet.create({
   },
   linkLabel: { flex: 1, fontWeight: '700' },
   hint: { color: Brand.textMuted, fontSize: 13, lineHeight: 18, marginBottom: 8 },
+  logout: {
+    borderWidth: 1,
+    borderColor: Brand.primary,
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   reset: {
     borderWidth: 1,
     borderColor: Brand.danger,

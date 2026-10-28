@@ -52,10 +52,15 @@ export type WerkRegistratie = {
 };
 
 /** Weekly overtime package — replaces Excel week-send + manager check */
-export type OverurenWeekStatus = 'concept' | 'ingediend' | 'goedgekeurd' | 'afgewezen';
+export type OverurenWeekStatus =
+  | 'concept'
+  | 'ingediend'
+  | 'info_gevraagd'
+  | 'goedgekeurd'
+  | 'afgewezen';
 
 /** After manager approval: TVT bank (other system) or payout allowance */
-export type VerwerkingKeuze = 'TVT' | 'Uitbetaling';
+export type VerwerkingKeuze = 'TVT' | 'Uitbetaling' | 'Gemengd';
 
 export type OverurenWeek = {
   id: string;
@@ -72,7 +77,12 @@ export type OverurenWeek = {
   afwijzingsReden: string | null;
   /** Set when manager approves */
   verwerking: VerwerkingKeuze | null;
+  /** Optional split note when verwerking = Gemengd */
+  verwerkingToelichting: string | null;
+  /** Engineer note on submit */
   opmerking: string;
+  /** Manager question / comment (e.g. info_gevraagd) */
+  managerOpmerking: string | null;
 };
 
 export type AppRol = 'medewerker' | 'manager';

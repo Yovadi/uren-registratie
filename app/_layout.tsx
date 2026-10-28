@@ -1,19 +1,35 @@
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { AppDataProvider } from '@/context/AppDataContext';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { Brand } from '@/constants/Colors';
 
 export { ErrorBoundary } from 'expo-router';
 
 export const unstable_settings = {
-  anchor: '(tabs)',
+  anchor: 'index',
 };
 
 SplashScreen.preventAutoHideAsync();
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { ready, session } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!ready) return;
+    const onLogin = segments[0] === 'login';
+    if (!session && !onLogin) router.replace('/login');
+    if (session && onLogin) router.replace('/(tabs)');
+  }, [ready, session, segments, router]);
+
+  return <>{children}</>;
+}
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -31,22 +47,28 @@ export default function RootLayout() {
   if (!loaded) return null;
 
   return (
-    <AppDataProvider>
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: Brand.header },
-          headerTintColor: '#fff',
-          headerTitleStyle: { fontWeight: '700' },
-        }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="registratie/new"
-          options={{ presentation: 'modal', title: 'Nieuwe registratie' }}
-        />
-        <Stack.Screen name="analyse/klant" options={{ title: 'Klantanalyse' }} />
-        <Stack.Screen name="analyse/project" options={{ title: 'Projectanalyse' }} />
-        <Stack.Screen name="analyse/land" options={{ title: 'Hotel & toelage' }} />
-      </Stack>
-    </AppDataProvider>
+    <AuthProvider>
+      <AppDataProvider>
+        <AuthGate>
+          <Stack
+            screenOptions={{
+              headerStyle: { backgroundColor: Brand.header },
+              headerTintColor: '#fff',
+              headerTitleStyle: { fontWeight: '700' },
+            }}>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="login" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="registratie/new"
+              options={{ presentation: 'modal', title: 'Nieuwe registratie' }}
+            />
+            <Stack.Screen name="analyse/klant" options={{ title: 'Klantanalyse' }} />
+            <Stack.Screen name="analyse/project" options={{ title: 'Projectanalyse' }} />
+            <Stack.Screen name="analyse/land" options={{ title: 'Hotel & toelage' }} />
+          </Stack>
+        </AuthGate>
+      </AppDataProvider>
+    </AuthProvider>
   );
 }

@@ -16,6 +16,7 @@ import {
   type ReisPlan,
   type WerkRegistratie,
 } from '@/domain';
+import { useAuth } from '@/context/AuthContext';
 import { getStore, type FieldServiceStore } from '@/storage';
 
 type Ctx = {
@@ -57,6 +58,7 @@ function defaultFilters(): DashboardFilters {
 }
 
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
+  const { session } = useAuth();
   const [store, setStore] = useState<FieldServiceStore | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,6 +101,27 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, [hydrate]);
+
+  /** Login session drives rol + display names used across screens. */
+  useEffect(() => {
+    if (!session || !store || !ready) return;
+    const next: AppSettings = {
+      ...settings,
+      rol: session.rol,
+      medewerkerNaam:
+        session.rol === 'medewerker' ? session.naam : settings.medewerkerNaam,
+      managerNaam: session.rol === 'manager' ? session.naam : settings.managerNaam,
+    };
+    if (
+      next.rol === settings.rol &&
+      next.medewerkerNaam === settings.medewerkerNaam &&
+      next.managerNaam === settings.managerNaam
+    ) {
+      return;
+    }
+    void store.saveSettings(next).then(() => setSettings(next));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync only on session change
+  }, [session?.userId, session?.rol, store, ready]);
 
   const refresh = useCallback(async () => {
     const s = store ?? (await getStore());

@@ -145,19 +145,36 @@ export function buildSeedOverurenWeken(registraties: WerkRegistratie[]): Overure
   const snaps = buildWeekSnapshots(registraties).slice(0, 12);
   return snaps.map((snap, i) => {
     const submitted = createSubmissionFromSnapshot(snap, 'Demo-indiening (vervangt Excel-week)');
-    if (i % 3 === 0) {
-      return approveWeek(submitted, 'Service Manager', i % 2 === 0 ? 'TVT' : 'Uitbetaling');
+    if (i % 4 === 0) {
+      return approveWeek(
+        submitted,
+        'Service Manager',
+        i % 2 === 0 ? 'TVT' : 'Uitbetaling',
+      );
     }
-    if (i % 3 === 1) {
+    if (i % 4 === 1) {
       return {
         ...submitted,
-        status: 'afgewezen',
+        status: 'afgewezen' as const,
         beoordeeldOp: new Date().toISOString(),
         beoordeeldDoor: 'Service Manager',
         afwijzingsReden: 'Pauze niet correct; graag corrigeren',
         verwerking: null,
+        verwerkingToelichting: null,
+        managerOpmerking: null,
       };
     }
-    return submitted; // pending manager
+    if (i % 4 === 2) {
+      return {
+        ...submitted,
+        status: 'info_gevraagd' as const,
+        beoordeeldOp: new Date().toISOString(),
+        beoordeeldDoor: 'Service Manager',
+        managerOpmerking: 'Klopt de hotelnacht van dinsdag? Graag bevestigen.',
+        verwerking: null,
+        verwerkingToelichting: null,
+      };
+    }
+    return submitted;
   });
 }

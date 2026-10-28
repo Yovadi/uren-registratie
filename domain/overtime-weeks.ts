@@ -14,7 +14,7 @@ import type {
 /** ISO week start (Monday) as YYYY-MM-DD */
 export function isoWeekStart(datum: string): string {
   const d = new Date(`${datum}T12:00:00`);
-  const day = d.getDay(); // 0 Sun
+  const day = d.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diff);
   const y = d.getFullYear();
@@ -35,7 +35,6 @@ export function isoWeekEnd(weekStart: string): string {
 export function isoWeekLabel(weekStart: string): string {
   const end = isoWeekEnd(weekStart);
   const d = new Date(`${weekStart}T12:00:00`);
-  // ISO week number
   const tmp = new Date(d.getTime());
   tmp.setDate(tmp.getDate() + 3 - ((tmp.getDay() + 6) % 7));
   const week1 = new Date(tmp.getFullYear(), 0, 4);
@@ -83,7 +82,6 @@ export type WeekSnapshot = {
   urenTotaal: number;
 };
 
-/** Build overtime-eligible week snapshots from registrations (per medewerker). */
 export function buildWeekSnapshots(registraties: WerkRegistratie[]): WeekSnapshot[] {
   const groups = new Map<string, WerkRegistratie[]>();
   for (const r of registraties) {
@@ -146,7 +144,9 @@ export function createSubmissionFromSnapshot(
     beoordeeldDoor: null,
     afwijzingsReden: null,
     verwerking: null,
+    verwerkingToelichting: null,
     opmerking: note,
+    managerOpmerking: null,
   };
 }
 
@@ -154,14 +154,17 @@ export function approveWeek(
   week: OverurenWeek,
   managerNaam: string,
   verwerking: VerwerkingKeuze,
+  toelichting: string | null = null,
 ): OverurenWeek {
   return {
     ...week,
     status: 'goedgekeurd',
     verwerking,
+    verwerkingToelichting: toelichting,
     beoordeeldOp: new Date().toISOString(),
     beoordeeldDoor: managerNaam,
     afwijzingsReden: null,
+    managerOpmerking: week.managerOpmerking,
   };
 }
 
@@ -174,18 +177,39 @@ export function rejectWeek(
     ...week,
     status: 'afgewezen',
     verwerking: null,
+    verwerkingToelichting: null,
     beoordeeldOp: new Date().toISOString(),
     beoordeeldDoor: managerNaam,
     afwijzingsReden: reden,
   };
 }
 
+/** Manager asks engineer to clarify / correct — week returns to engineer. */
+export function requestWeekInfo(
+  week: OverurenWeek,
+  managerNaam: string,
+  vraag: string,
+): OverurenWeek {
+  return {
+    ...week,
+    status: 'info_gevraagd',
+    beoordeeldOp: new Date().toISOString(),
+    beoordeeldDoor: managerNaam,
+    managerOpmerking: vraag,
+    afwijzingsReden: null,
+    verwerking: null,
+    verwerkingToelichting: null,
+  };
+}
+
 export function statusLabel(status: OverurenWeekStatus): string {
   switch (status) {
     case 'concept':
-      return 'Concept';
+      return 'Nog niet ingediend';
     case 'ingediend':
-      return 'Ingediend';
+      return 'Wacht op manager';
+    case 'info_gevraagd':
+      return 'Info gevraagd';
     case 'goedgekeurd':
       return 'Goedgekeurd';
     case 'afgewezen':
@@ -196,12 +220,21 @@ export function statusLabel(status: OverurenWeekStatus): string {
 export function countByStatus(weeks: OverurenWeek[]) {
   return {
     ingediend: weeks.filter((w) => w.status === 'ingediend').length,
+    info_gevraagd: weeks.filter((w) => w.status === 'info_gevraagd').length,
     goedgekeurd: weeks.filter((w) => w.status === 'goedgekeurd').length,
     afgewezen: weeks.filter((w) => w.status === 'afgewezen').length,
   };
 }
 
-/** Keep type import used for travel filter side-effects free */
 export function hasWorkOrTravel(rows: WerkRegistratie[]): boolean {
   return rows.some((r) => isWorkActivity(r.Activiteit) || isTravelActivity(r.Activiteit));
 }
+
+/** Procedure steps for UI */
+export const INDIEN_PROCEDURE = [
+  'Je registreert uren in de app (zoals voorheen in Excel).',
+  'Alleen weken mét overuren verschijnen hier.',
+  'Met “Week indienen” stuur je die week naar je manager.',
+  'De manager controleert en kiest: TVT, uitbetaling, info vragen of afwijzen.',
+  'TVT-saldo / loonstrook worden in andere systemen verwerkt — niet in deze app.',
+] as const;
