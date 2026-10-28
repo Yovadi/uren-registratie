@@ -2,7 +2,6 @@ import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { View } from 'react-native';
 import 'react-native-reanimated';
 
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -54,13 +53,14 @@ export default function RootLayout() {
       <AppDataProvider>
         <ThemeProvider>
           <AuthGate>
-            <View style={{ flex: 1 }}>
+            <>
               <OfflineBanner />
               <Stack
                 screenOptions={{
                   headerStyle: { backgroundColor: Brand.header },
                   headerTintColor: '#fff',
                   headerTitleStyle: { fontWeight: '700' },
+                  contentStyle: { flex: 1 },
                 }}>
                 <Stack.Screen name="index" options={{ headerShown: false }} />
                 <Stack.Screen name="login" options={{ headerShown: false }} />
@@ -73,7 +73,7 @@ export default function RootLayout() {
                 <Stack.Screen name="analyse/project" options={{ title: 'Projectanalyse' }} />
                 <Stack.Screen name="analyse/land" options={{ title: 'Hotel & toelage' }} />
               </Stack>
-            </View>
+            </>
           </AuthGate>
         </ThemeProvider>
       </AppDataProvider>
