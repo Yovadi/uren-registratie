@@ -9,7 +9,11 @@ import React, {
 
 import {
   DEFAULT_SETTINGS,
+  buildBackup,
+  downloadBackupJson,
   enrichRegistratie,
+  parseBackup,
+  pickBackupFile,
   type AppSettings,
   type DashboardFilters,
   type OverurenWeek,
@@ -41,6 +45,8 @@ type Ctx = {
   removeOverurenWeek: (id: string) => Promise<void>;
   saveReis: (row: ReisPlan) => Promise<void>;
   removeReis: (id: string) => Promise<void>;
+  exportBackup: () => Promise<boolean>;
+  importBackup: () => Promise<{ ok: true; count: number } | { ok: false; error: string }>;
   resetDemoData: () => Promise<void>;
 };
 
@@ -205,8 +211,36 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     [store],
   );
 
+  const exportBackup = useCallback(async () => {
+    if (!store) throw new Error('Store not ready');
+    const snap = await store.exportSnapshot();
+    return downloadBackupJson(buildBackup(snap));
+  }, [store]);
+
+  const importBackup = useCallback(async () => {
+    if (!store) throw new Error('Store not ready');
+    try {
+      const raw = await pickBackupFile();
+      const backup = parseBackup(raw);
+      await store.replaceAll({
+        settings: backup.settings,
+        registraties: backup.registraties,
+        overurenWeken: backup.overurenWeken,
+        reizen: backup.reizen,
+      });
+      await hydrate(store);
+      return { ok: true as const, count: backup.registraties.length };
+    } catch (e) {
+      return {
+        ok: false as const,
+        error: e instanceof Error ? e.message : 'Import mislukt',
+      };
+    }
+  }, [store, hydrate]);
+
   const resetDemoData = useCallback(async () => {
     if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('hotraco-speria-fsm:v3');
       localStorage.removeItem('hotraco-speria-fsm:v2');
       localStorage.removeItem('hotraco-speria-fsm:v1');
     }
@@ -235,6 +269,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       removeOverurenWeek,
       saveReis,
       removeReis,
+      exportBackup,
+      importBackup,
       resetDemoData,
     }),
     [
@@ -253,6 +289,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       removeOverurenWeek,
       saveReis,
       removeReis,
+      exportBackup,
+      importBackup,
       resetDemoData,
     ],
   );

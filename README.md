@@ -1,6 +1,6 @@
 # Hotraco / Speria Field Service Manager
 
-Expo-app (web + iOS/Android) voor Field Service Engineers, Service Managers en Planning.
+Expo-app (web) voor Field Service Engineers, Service Managers en Planning.
 
 ## Inloggen (demo)
 | Rol | Voorbeelden | PIN |
@@ -9,48 +9,45 @@ Expo-app (web + iOS/Android) voor Field Service Engineers, Service Managers en P
 | Manager | Service Manager, Planning Lead | `9999` |
 
 ## Procedure overuren
-1. Medewerker registreert uren (sjablonen, weekkalender, validaties).
-2. Weken mét overuren verschijnen onder **Overuren** op **weeknummer** (badge + herinnering).
-3. Bij **Week indienen** kiest de medewerker **TVT** of **Uitbetalen**.
-4. Manager ziet één platte wachtrij en kan alleen **accepteren** of **afwijzen** (bulk-accepteren mogelijk).
-5. TVT-saldo / loonstrook blijven in andere systemen.
+1. Medewerker voert een **hele week** in.
+2. Bij indienen: **TVT** of **Uitbetalen**.
+3. Manager ziet weken op **weeknummer** + naam en kan alleen **accepteren** of **afwijzen**.
+4. TVT-saldo / loonstrook blijven in andere systemen.
 
-## Op je PC (aanbevolen: web in de browser)
+## Op je PC / in het buitenland
 
-Data blijft bewaard in **browser-localStorage** (zelfde browser + zelfde adres).  
-Dat overleeft herstarten van de PC en opnieuw starten van de app — zolang je geen browserdata wist.
-
-### Eenmalig
-1. Installeer [Node.js LTS](https://nodejs.org/) (18+)
-2. Clone de repo en open de map:
+### Lokaal starten (ontwikkeling)
 ```bash
 git clone https://github.com/Yovadi/uren-registratie.git
 cd uren-registratie
-git checkout cursor/hotraco-speria-fsm-d046   # of main als de PR gemerged is
+git checkout cursor/hotraco-speria-fsm-d046   # of main na merge
 npm install
-```
-
-### Elke keer starten
-```bash
 npx expo start --web
 ```
-- Browser opent meestal automatisch (anders: `http://localhost:8081`)
-- Inloggen: medewerker PIN `1234` · manager PIN `9999`
+Open `http://localhost:8081`.
 
-`--clear` is alleen nodig bij rare cache-problemen. Dat wist **niet** je opgeslagen uren.
+### Waar blijven gegevens?
+- **Automatisch** in de browser (localStorage) op **dit apparaat**.
+- Werkt offline zodra de app geladen is (veldwerk / hotel-wifi).
+- Zelfde laptop + dezelfde browser = data blijft na herstart.
 
-### Wat bewaart data — en wat niet
-| Situatie | Data blijft |
-|----------|-------------|
-| App opnieuw starten / PC herstarten | Ja |
-| Zelfde browser, zelfde localhost-poort | Ja |
-| Andere browser / Incognito / privévenster | Nee (aparte of lege opslag) |
-| Browsergeschiedenis/cookies/sitegegevens wissen | Nee |
-| Knop **Reset demo-data** in Meer | Nee (bewust wissen) |
-| Expo Go op telefoon (native) | Nee — daar is opslag nu alleen in geheugen |
+### Back-up (belangrijk onderweg)
+In **Meer → Back-up & onderweg**:
+1. **Exporteer alle gegevens** → JSON-bestand  
+2. Bewaar dat in **OneDrive / Teams / USB**  
+3. Op een andere PC: **Importeer back-up…**
 
-**Tip:** werk altijd in dezelfde browser (bijv. Chrome) op `localhost:8081`.  
-Er is nog geen cloud-sync tussen PC’s; export CSV per week kan als back-up.
+Zo raak je niets kwijt als je van laptop wisselt of browserdata wist.  
+Manager en medewerker op verschillende devices: wissel via dit back-upbestand (gedeelde Teams-map), tot er cloud-sync is.
+
+### Wat wist data?
+| Actie | Data weg? |
+|-------|-----------|
+| PC / app herstarten | Nee |
+| Andere browser / Incognito | Ja (andere opslag) |
+| Browser sitegegevens wissen | Ja |
+| **Reset demo-data** | Ja |
+| Nieuwe laptop zonder import | Ja — eerst back-up importeren |
 
 ## Kleuren
 Primair `#0F4C81` · secundair `#70AD47` · accent `#ED7D31`

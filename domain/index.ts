@@ -10,3 +10,4 @@ export * from './validation';
 export * from './export';
 export * from './week-summary';
 export * from './templates';
+export * from './backup';

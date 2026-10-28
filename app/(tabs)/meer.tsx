@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 
@@ -23,13 +23,15 @@ import type { AppThema } from '@/domain';
 export default function MeerScreen() {
   const theme = useTheme();
   const { session, logout } = useAuth();
-  const { settings, saveSettings, resetDemoData } = useAppData();
+  const { settings, saveSettings, resetDemoData, exportBackup, importBackup, registraties } =
+    useAppData();
   const thema: AppThema = settings.thema === 'dark' ? 'dark' : 'light';
   const [land, setLand] = useState(settings.defaultLand ?? 'Nederland');
   const [tarief, setTarief] = useState(
     String(settings.buitenlandToelagePerDag ?? 55),
   );
   const [saved, setSaved] = useState(false);
+  const [backupMsg, setBackupMsg] = useState<string | null>(null);
 
   useEffect(() => {
     setLand(settings.defaultLand ?? 'Nederland');
@@ -146,12 +148,72 @@ export default function MeerScreen() {
           />
 
           <Text style={[styles.section, { marginTop: 24, color: theme.text }]}>
+            Back-up & onderweg
+          </Text>
+          <Text style={[styles.hint, { color: theme.textMuted }]}>
+            Gegevens blijven op dit apparaat in de browser. Voor gebruik in het
+            buitenland of als reserve: exporteer een JSON-back-up naar OneDrive /
+            Teams / USB. Op een andere laptop: importeer dat bestand.
+          </Text>
+          <Text style={[styles.hint, { color: theme.textMuted }]}>
+            Nu in deze browser: {registraties.length} registratie(s).
+          </Text>
+          <Pressable
+            style={[styles.backupBtn, { borderColor: Brand.primary }]}
+            onPress={async () => {
+              const ok = await exportBackup();
+              setBackupMsg(
+                ok
+                  ? 'Back-up gedownload — bewaar het bestand in OneDrive/Teams.'
+                  : 'Download werkt in de browser (web).',
+              );
+            }}>
+            <Ionicons name="download-outline" size={18} color={Brand.primary} />
+            <Text style={{ color: Brand.primary, fontWeight: '700' }}>
+              Exporteer alle gegevens
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.backupBtn, { borderColor: Brand.secondary, marginTop: 8 }]}
+            onPress={async () => {
+              const result = await importBackup();
+              if (result.ok) {
+                setBackupMsg(`Back-up geladen (${result.count} registraties).`);
+                Alert.alert('Import ok', `${result.count} registraties hersteld.`);
+              } else {
+                setBackupMsg(result.error);
+                Alert.alert('Import mislukt', result.error);
+              }
+            }}>
+            <Ionicons name="cloud-upload-outline" size={18} color={Brand.secondary} />
+            <Text style={{ color: Brand.secondary, fontWeight: '700' }}>
+              Importeer back-up…
+            </Text>
+          </Pressable>
+          {backupMsg ? (
+            <Text style={{ color: theme.textMuted, marginTop: 8, fontSize: 13 }}>
+              {backupMsg}
+            </Text>
+          ) : null}
+
+          <Text style={[styles.section, { marginTop: 24, color: theme.text }]}>
             Demo data
           </Text>
           <Text style={[styles.hint, { color: theme.textMuted }]}>
-            Reset herlaadt seed-data en wist lokale demo-opslag.
+            Reset wist lokale data en herlaadt demo-seed. Maak eerst een back-up.
           </Text>
-          <Pressable style={styles.reset} onPress={() => resetDemoData()}>
+          <Pressable
+            style={styles.reset}
+            onPress={() => {
+              Alert.alert(
+                'Reset demo-data?',
+                'Alle lokale uren/overuren gaan verloren tenzij je een back-up hebt.',
+                [
+                  { text: 'Annuleren', style: 'cancel' },
+                  { text: 'Reset', style: 'destructive', onPress: () => resetDemoData() },
+                ],
+              );
+            }}>
             <Text style={{ color: Brand.danger, fontWeight: '700' }}>Reset demo-data</Text>
           </Pressable>
         </ScrollView>
@@ -226,6 +288,15 @@ const styles = StyleSheet.create({
     padding: 12,
     alignItems: 'center',
     marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  backupBtn: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 8,

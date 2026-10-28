@@ -134,4 +134,26 @@ export class WebLocalStore implements FieldServiceStore {
     this.reizen = this.reizen.filter((r) => r.id !== id);
     this.persist();
   }
+
+  async exportSnapshot() {
+    return {
+      settings: { ...this.settings },
+      registraties: [...this.registraties],
+      overurenWeken: [...this.overurenWeken],
+      reizen: [...this.reizen],
+    };
+  }
+
+  async replaceAll(snap: {
+    settings: AppSettings;
+    registraties: WerkRegistratie[];
+    overurenWeken: OverurenWeek[];
+    reizen: ReisPlan[];
+  }) {
+    this.settings = { ...DEFAULT_SETTINGS, ...snap.settings };
+    this.registraties = recomputeDayCompensation(snap.registraties ?? []);
+    this.overurenWeken = [...(snap.overurenWeken ?? [])];
+    this.reizen = [...(snap.reizen ?? [])];
+    this.persist();
+  }
 }

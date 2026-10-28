@@ -5,6 +5,13 @@ import type {
   WerkRegistratie,
 } from '@/domain/types';
 
+export type StoreSnapshot = {
+  settings: AppSettings;
+  registraties: WerkRegistratie[];
+  overurenWeken: OverurenWeek[];
+  reizen: ReisPlan[];
+};
+
 export interface FieldServiceStore {
   init(): Promise<void>;
 
@@ -23,4 +30,8 @@ export interface FieldServiceStore {
   listReizen(): Promise<ReisPlan[]>;
   upsertReis(row: ReisPlan): Promise<void>;
   deleteReis(id: string): Promise<void>;
+
+  /** Full replace for backup import */
+  replaceAll(snap: StoreSnapshot): Promise<void>;
+  exportSnapshot(): Promise<StoreSnapshot>;
 }
