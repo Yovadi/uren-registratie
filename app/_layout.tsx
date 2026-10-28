@@ -1,11 +1,11 @@
 import { useFonts } from 'expo-font';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/components/useColorScheme';
 import { AppDataProvider } from '@/context/AppDataContext';
+import { Brand } from '@/constants/Colors';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -32,23 +32,21 @@ export default function RootLayout() {
 
   return (
     <AppDataProvider>
-      <RootLayoutNav />
-    </AppDataProvider>
-  );
-}
-
-function RootLayoutNav() {
-  const colorScheme = useColorScheme();
-
-  return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: Brand.header },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: '700' },
+        }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
-          name="entry/new"
+          name="registratie/new"
           options={{ presentation: 'modal', title: 'Nieuwe registratie' }}
         />
+        <Stack.Screen name="analyse/klant" options={{ title: 'Klantanalyse' }} />
+        <Stack.Screen name="analyse/project" options={{ title: 'Projectanalyse' }} />
+        <Stack.Screen name="analyse/land" options={{ title: 'Landenanalyse' }} />
       </Stack>
-    </ThemeProvider>
+    </AppDataProvider>
   );
 }

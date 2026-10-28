@@ -1,30 +1,19 @@
-import { LocalSqliteStore } from './local-store';
 import { MemoryStore } from './memory-store';
-import type { HourStore } from './types';
+import type { FieldServiceStore } from './types';
 
-export type { HourStore } from './types';
-export { LocalSqliteStore } from './local-store';
+export type { FieldServiceStore } from './types';
 export { MemoryStore } from './memory-store';
 
-let singleton: HourStore | null = null;
+let singleton: FieldServiceStore | null = null;
 
 /**
- * Prefer SQLite; fall back to memory if open/init fails (e.g. restricted web).
- * Swap this factory later for a SyncedStore without changing screens.
+ * Native: memory + seed for Expo Go (SQLite schema can be layered later).
+ * Web uses `index.web.ts` (localStorage).
  */
-export async function getHourStore(): Promise<HourStore> {
+export async function getStore(): Promise<FieldServiceStore> {
   if (singleton) return singleton;
-
-  try {
-    const store = new LocalSqliteStore();
-    await store.init();
-    singleton = store;
-    return store;
-  } catch (err) {
-    console.warn('[storage] SQLite unavailable, using MemoryStore', err);
-    const store = new MemoryStore();
-    await store.init();
-    singleton = store;
-    return store;
-  }
+  const store = new MemoryStore();
+  await store.init();
+  singleton = store;
+  return store;
 }

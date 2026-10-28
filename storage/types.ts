@@ -1,17 +1,26 @@
-import type { AppSettings, TimeEntry, TimeEntryId } from '@/domain/types';
+import type {
+  AppSettings,
+  CompensatieBankRegel,
+  ReisPlan,
+  WerkRegistratie,
+} from '@/domain/types';
 
-/**
- * Persistence boundary. v1 = device-local (SQLite).
- * Later: SyncedStore implementing the same methods (auth + remote sync).
- */
-export interface HourStore {
+export interface FieldServiceStore {
   init(): Promise<void>;
 
   getSettings(): Promise<AppSettings>;
   saveSettings(settings: AppSettings): Promise<void>;
 
-  listEntries(): Promise<TimeEntry[]>;
-  getEntry(id: TimeEntryId): Promise<TimeEntry | null>;
-  upsertEntry(entry: TimeEntry): Promise<void>;
-  deleteEntry(id: TimeEntryId): Promise<void>;
+  listRegistraties(): Promise<WerkRegistratie[]>;
+  upsertRegistratie(row: WerkRegistratie): Promise<void>;
+  deleteRegistratie(id: number): Promise<void>;
+  nextRegistratieId(): Promise<number>;
+
+  listBank(): Promise<CompensatieBankRegel[]>;
+  upsertBank(row: CompensatieBankRegel): Promise<void>;
+  deleteBank(id: string): Promise<void>;
+
+  listReizen(): Promise<ReisPlan[]>;
+  upsertReis(row: ReisPlan): Promise<void>;
+  deleteReis(id: string): Promise<void>;
 }

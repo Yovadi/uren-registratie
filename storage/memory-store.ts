@@ -1,50 +1,67 @@
-import {
-  DEFAULT_SETTINGS,
-  type AppSettings,
-  type TimeEntry,
-  type TimeEntryId,
+import { DEFAULT_SETTINGS, buildSeedBank, buildSeedRegistraties, recomputeDayCompensation } from '@/domain';
+import type {
+  AppSettings,
+  CompensatieBankRegel,
+  ReisPlan,
+  WerkRegistratie,
 } from '@/domain/types';
-import type { HourStore } from './types';
+import type { FieldServiceStore } from './types';
 
-/** In-memory fallback (tests / when SQLite cannot open). Same HourStore contract. */
-export class MemoryStore implements HourStore {
-  private settings: AppSettings = {
-    ...DEFAULT_SETTINGS,
-    workRules: { ...DEFAULT_SETTINGS.workRules },
-  };
-  private entries = new Map<TimeEntryId, TimeEntry>();
+/** In-memory store (native fallback / tests). Seeds demo data. */
+export class MemoryStore implements FieldServiceStore {
+  private settings: AppSettings = { ...DEFAULT_SETTINGS };
+  private registraties: WerkRegistratie[] = [];
+  private bank: CompensatieBankRegel[] = [];
+  private reizen: ReisPlan[] = [];
 
-  async init(): Promise<void> {
-    /* no-op */
+  async init() {
+    this.registraties = buildSeedRegistraties();
+    this.bank = buildSeedBank();
   }
 
-  async getSettings(): Promise<AppSettings> {
-    return {
-      homeTimeZone: this.settings.homeTimeZone,
-      workRules: { ...this.settings.workRules },
-    };
+  async getSettings() {
+    return { ...this.settings };
   }
-
-  async saveSettings(settings: AppSettings): Promise<void> {
-    this.settings = {
-      homeTimeZone: settings.homeTimeZone,
-      workRules: { ...settings.workRules },
-    };
+  async saveSettings(s: AppSettings) {
+    this.settings = { ...s };
   }
-
-  async listEntries(): Promise<TimeEntry[]> {
-    return [...this.entries.values()].sort((a, b) => b.startAt.localeCompare(a.startAt));
+  async listRegistraties() {
+    return [...this.registraties];
   }
-
-  async getEntry(id: TimeEntryId): Promise<TimeEntry | null> {
-    return this.entries.get(id) ?? null;
+  async nextRegistratieId() {
+    return this.registraties.reduce((m, r) => Math.max(m, r.RegistratieID), 0) + 1;
   }
-
-  async upsertEntry(entry: TimeEntry): Promise<void> {
-    this.entries.set(entry.id, { ...entry });
+  async upsertRegistratie(row: WerkRegistratie) {
+    const i = this.registraties.findIndex((r) => r.RegistratieID === row.RegistratieID);
+    if (i >= 0) this.registraties[i] = row;
+    else this.registraties.push(row);
+    this.registraties = recomputeDayCompensation(this.registraties);
   }
-
-  async deleteEntry(id: TimeEntryId): Promise<void> {
-    this.entries.delete(id);
+  async deleteRegistratie(id: number) {
+    this.registraties = recomputeDayCompensation(
+      this.registraties.filter((r) => r.RegistratieID !== id),
+    );
+  }
+  async listBank() {
+    return [...this.bank];
+  }
+  async upsertBank(row: CompensatieBankRegel) {
+    const i = this.bank.findIndex((b) => b.id === row.id);
+    if (i >= 0) this.bank[i] = row;
+    else this.bank.push(row);
+  }
+  async deleteBank(id: string) {
+    this.bank = this.bank.filter((b) => b.id !== id);
+  }
+  async listReizen() {
+    return [...this.reizen];
+  }
+  async upsertReis(row: ReisPlan) {
+    const i = this.reizen.findIndex((r) => r.id === row.id);
+    if (i >= 0) this.reizen[i] = row;
+    else this.reizen.push(row);
+  }
+  async deleteReis(id: string) {
+    this.reizen = this.reizen.filter((r) => r.id !== id);
   }
 }

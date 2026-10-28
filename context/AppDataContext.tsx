@@ -9,75 +9,101 @@ import React, {
 
 import {
   DEFAULT_SETTINGS,
-  createEmptyEntry,
+  enrichRegistratie,
   type AppSettings,
-  type TimeEntry,
-  type TimeEntryId,
+  type CompensatieBankRegel,
+  type DashboardFilters,
+  type ReisPlan,
+  type WerkRegistratie,
 } from '@/domain';
-import { getHourStore, type HourStore } from '@/storage';
+import { getStore, type FieldServiceStore } from '@/storage';
 
-type AppDataContextValue = {
+type Ctx = {
   ready: boolean;
   error: string | null;
   settings: AppSettings;
-  entries: TimeEntry[];
+  registraties: WerkRegistratie[];
+  bank: CompensatieBankRegel[];
+  reizen: ReisPlan[];
+  filters: DashboardFilters;
+  setFilters: (f: DashboardFilters) => void;
   refresh: () => Promise<void>;
-  saveSettings: (settings: AppSettings) => Promise<void>;
-  addEntry: (
-    input: Partial<Omit<TimeEntry, 'id' | 'createdAt' | 'updatedAt'>> & {
-      siteTimeZone: string;
+  saveSettings: (s: AppSettings) => Promise<void>;
+  saveRegistratie: (
+    input: Omit<WerkRegistratie, 'Uren' | 'CompensabeleUren' | 'Weekdagnummer' | 'DagType' | 'RegistratieID'> & {
+      RegistratieID?: number;
     },
-  ) => Promise<TimeEntry>;
-  updateEntry: (entry: TimeEntry) => Promise<void>;
-  removeEntry: (id: TimeEntryId) => Promise<void>;
+  ) => Promise<WerkRegistratie>;
+  removeRegistratie: (id: number) => Promise<void>;
+  saveBank: (row: CompensatieBankRegel) => Promise<void>;
+  removeBank: (id: string) => Promise<void>;
+  saveReis: (row: ReisPlan) => Promise<void>;
+  removeReis: (id: string) => Promise<void>;
+  resetDemoData: () => Promise<void>;
 };
 
-const AppDataContext = createContext<AppDataContextValue | null>(null);
+const AppDataContext = createContext<Ctx | null>(null);
 
-function newId(): string {
-  return `te_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+function defaultFilters(): DashboardFilters {
+  const now = new Date();
+  return {
+    jaar: now.getFullYear(),
+    maand: 'all',
+    klant: 'all',
+    land: 'all',
+    medewerker: 'all',
+  };
 }
 
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
-  const [store, setStore] = useState<HourStore | null>(null);
+  const [store, setStore] = useState<FieldServiceStore | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
-  const [entries, setEntries] = useState<TimeEntry[]>([]);
+  const [registraties, setRegistraties] = useState<WerkRegistratie[]>([]);
+  const [bank, setBank] = useState<CompensatieBankRegel[]>([]);
+  const [reizen, setReizen] = useState<ReisPlan[]>([]);
+  const [filters, setFilters] = useState<DashboardFilters>(defaultFilters);
 
-  const refresh = useCallback(async () => {
-    const s = store ?? (await getHourStore());
-    if (!store) setStore(s);
-    const [nextSettings, nextEntries] = await Promise.all([s.getSettings(), s.listEntries()]);
-    setSettings(nextSettings);
-    setEntries(nextEntries);
-  }, [store]);
+  const hydrate = useCallback(async (s: FieldServiceStore) => {
+    const [st, regs, bk, rz] = await Promise.all([
+      s.getSettings(),
+      s.listRegistraties(),
+      s.listBank(),
+      s.listReizen(),
+    ]);
+    setSettings(st);
+    setRegistraties(regs);
+    setBank(bk);
+    setReizen(rz);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const s = await getHourStore();
+        const s = await getStore();
         if (cancelled) return;
         setStore(s);
-        const [nextSettings, nextEntries] = await Promise.all([
-          s.getSettings(),
-          s.listEntries(),
-        ]);
-        if (cancelled) return;
-        setSettings(nextSettings);
-        setEntries(nextEntries);
-        setReady(true);
+        await hydrate(s);
+        if (!cancelled) setReady(true);
       } catch (e) {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : 'Failed to open store');
-        setReady(true);
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : 'Store openen mislukt');
+          setReady(true);
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [hydrate]);
+
+  const refresh = useCallback(async () => {
+    const s = store ?? (await getStore());
+    if (!store) setStore(s);
+    await hydrate(s);
+  }, [store, hydrate]);
 
   const saveSettings = useCallback(
     async (next: AppSettings) => {
@@ -88,74 +114,124 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     [store],
   );
 
-  const addEntry = useCallback(
+  const saveRegistratie = useCallback(
     async (
-      input: Partial<Omit<TimeEntry, 'id' | 'createdAt' | 'updatedAt'>> & {
-        siteTimeZone: string;
+      input: Omit<WerkRegistratie, 'Uren' | 'CompensabeleUren' | 'Weekdagnummer' | 'DagType' | 'RegistratieID'> & {
+        RegistratieID?: number;
       },
     ) => {
       if (!store) throw new Error('Store not ready');
-      const base = createEmptyEntry(input);
-      const entry: TimeEntry = { ...base, id: newId() };
-      await store.upsertEntry(entry);
-      setEntries((prev) => [entry, ...prev].sort((a, b) => b.startAt.localeCompare(a.startAt)));
-      return entry;
+      const id = input.RegistratieID ?? (await store.nextRegistratieId());
+      const row = enrichRegistratie({ ...input, RegistratieID: id });
+      await store.upsertRegistratie(row);
+      const regs = await store.listRegistraties();
+      setRegistraties(regs);
+      return regs.find((r) => r.RegistratieID === id) ?? row;
     },
     [store],
   );
 
-  const updateEntry = useCallback(
-    async (entry: TimeEntry) => {
+  const removeRegistratie = useCallback(
+    async (id: number) => {
       if (!store) throw new Error('Store not ready');
-      const next = { ...entry, updatedAt: new Date().toISOString() };
-      await store.upsertEntry(next);
-      setEntries((prev) =>
-        prev
-          .map((e) => (e.id === next.id ? next : e))
-          .sort((a, b) => b.startAt.localeCompare(a.startAt)),
-      );
+      await store.deleteRegistratie(id);
+      setRegistraties(await store.listRegistraties());
     },
     [store],
   );
 
-  const removeEntry = useCallback(
-    async (id: TimeEntryId) => {
+  const saveBank = useCallback(
+    async (row: CompensatieBankRegel) => {
       if (!store) throw new Error('Store not ready');
-      await store.deleteEntry(id);
-      setEntries((prev) => prev.filter((e) => e.id !== id));
+      await store.upsertBank(row);
+      setBank(await store.listBank());
     },
     [store],
   );
+
+  const removeBank = useCallback(
+    async (id: string) => {
+      if (!store) throw new Error('Store not ready');
+      await store.deleteBank(id);
+      setBank(await store.listBank());
+    },
+    [store],
+  );
+
+  const saveReis = useCallback(
+    async (row: ReisPlan) => {
+      if (!store) throw new Error('Store not ready');
+      await store.upsertReis(row);
+      setReizen(await store.listReizen());
+    },
+    [store],
+  );
+
+  const removeReis = useCallback(
+    async (id: string) => {
+      if (!store) throw new Error('Store not ready');
+      await store.deleteReis(id);
+      setReizen(await store.listReizen());
+    },
+    [store],
+  );
+
+  const resetDemoData = useCallback(async () => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('hotraco-speria-fsm:v1');
+    }
+    // Force re-init by recreating — simplest: reload page on web
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+      return;
+    }
+    await refresh();
+  }, [refresh]);
 
   const value = useMemo(
     () => ({
       ready,
       error,
       settings,
-      entries,
+      registraties,
+      bank,
+      reizen,
+      filters,
+      setFilters,
       refresh,
       saveSettings,
-      addEntry,
-      updateEntry,
-      removeEntry,
+      saveRegistratie,
+      removeRegistratie,
+      saveBank,
+      removeBank,
+      saveReis,
+      removeReis,
+      resetDemoData,
     }),
     [
       ready,
       error,
       settings,
-      entries,
+      registraties,
+      bank,
+      reizen,
+      filters,
       refresh,
       saveSettings,
-      addEntry,
-      updateEntry,
-      removeEntry,
+      saveRegistratie,
+      removeRegistratie,
+      saveBank,
+      removeBank,
+      saveReis,
+      removeReis,
+      resetDemoData,
     ],
   );
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;
 }
 
-export function useAppData(): AppDataContextValue {
+export function useAppData(): Ctx {
   const ctx = useContext(AppDataContext);
   if (!ctx) throw new Error('useAppData must be used within AppDataProvider');
   return ctx;

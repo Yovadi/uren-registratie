@@ -1,46 +1,68 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { Text } from 'react-native';
+import { Platform } from 'react-native';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
-
-function TabGlyph({ label, color }: { label: string; color: string }) {
-  return (
-    <Text style={{ color, fontSize: 13, fontWeight: '700' }} accessibilityLabel={label}>
-      {label}
-    </Text>
-  );
-}
+import { Brand } from '@/constants/Colors';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
-        headerShown: useClientOnlyValue(false, true),
+        headerShown: false,
+        tabBarActiveTintColor: Brand.primary,
+        tabBarInactiveTintColor: '#8A9AAB',
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarStyle: {
+          backgroundColor: '#fff',
+          borderTopColor: Brand.border,
+          height: Platform.OS === 'web' ? 64 : undefined,
+          paddingTop: Platform.OS === 'web' ? 6 : undefined,
+          paddingBottom: Platform.OS === 'web' ? 8 : undefined,
+        },
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Week',
-          tabBarIcon: ({ color }) => <TabGlyph label="Wk" color={String(color)} />,
+          title: 'Dashboard',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="grid-outline" size={size} color={String(color)} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="entries"
+        name="registraties"
         options={{
           title: 'Uren',
-          tabBarIcon: ({ color }) => <TabGlyph label="Ur" color={String(color)} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="create-outline" size={size} color={String(color)} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="settings"
+        name="tvt"
         options={{
-          title: 'Instellingen',
-          tabBarIcon: ({ color }) => <TabGlyph label="In" color={String(color)} />,
+          title: 'TVT',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="wallet-outline" size={size} color={String(color)} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="reizen"
+        options={{
+          title: 'Reizen',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="airplane-outline" size={size} color={String(color)} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="meer"
+        options={{
+          title: 'Meer',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="menu-outline" size={size} color={String(color)} />
+          ),
         }}
       />
     </Tabs>
