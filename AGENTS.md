@@ -39,3 +39,12 @@ Docs: https://docs.expo.dev/eas/index.md
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+
+## Cursor Cloud specific instructions
+
+- Expo SDK 58 needs Node.js 22.13 or newer. This environment’s default image already provides a compatible Node. Dependencies install with `npm ci` from `package-lock.json`.
+- The runnable surface here is web. Start it with `npx expo start --web --host lan --port 8081` and open `http://127.0.0.1:8081`. Leave `CI` unset; `CI=1` turns off Fast Refresh.
+- Typecheck with `npx tsc --noEmit`. `npx expo lint` is not set up (there is no ESLint dependency or config).
+- iOS and Android simulators are not available. Verify UI changes in the browser. No secrets or external services are required; entries live in browser SQLite.
+- Keep the `.wasm` asset and the COOP/COEP headers in `metro.config.js`. `expo-sqlite` on web needs `SharedArrayBuffer`.
+- `app/+html.tsx` must render `headNodes` and `bodyNodes` from `useServerDocumentContext`. Without them the dev server’s HTML omits the client bundle and the UI stays on the loading spinner.
