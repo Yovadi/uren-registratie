@@ -1,19 +1,24 @@
-import { DEFAULT_SETTINGS, buildSeedBank, buildSeedRegistraties, recomputeDayCompensation } from '@/domain';
+import {
+  DEFAULT_SETTINGS,
+  buildSeedOverurenWeken,
+  buildSeedRegistraties,
+  recomputeDayCompensation,
+} from '@/domain';
 import type {
   AppSettings,
-  CompensatieBankRegel,
+  OverurenWeek,
   ReisPlan,
   WerkRegistratie,
 } from '@/domain/types';
 import type { FieldServiceStore } from './types';
 
-const KEY = 'hotraco-speria-fsm:v1';
+const KEY = 'hotraco-speria-fsm:v2';
 
 type Snapshot = {
-  version: 1;
+  version: 2;
   settings: AppSettings;
   registraties: WerkRegistratie[];
-  bank: CompensatieBankRegel[];
+  overurenWeken: OverurenWeek[];
   reizen: ReisPlan[];
   seeded?: boolean;
 };
@@ -21,7 +26,7 @@ type Snapshot = {
 export class WebLocalStore implements FieldServiceStore {
   private settings: AppSettings = { ...DEFAULT_SETTINGS };
   private registraties: WerkRegistratie[] = [];
-  private bank: CompensatieBankRegel[] = [];
+  private overurenWeken: OverurenWeek[] = [];
   private reizen: ReisPlan[] = [];
 
   async init(): Promise<void> {
@@ -39,7 +44,7 @@ export class WebLocalStore implements FieldServiceStore {
       const parsed = JSON.parse(raw) as Snapshot;
       this.settings = { ...DEFAULT_SETTINGS, ...(parsed.settings ?? {}) };
       this.registraties = recomputeDayCompensation(parsed.registraties ?? []);
-      this.bank = parsed.bank ?? [];
+      this.overurenWeken = parsed.overurenWeken ?? [];
       this.reizen = parsed.reizen ?? [];
       if (!parsed.seeded && this.registraties.length === 0) {
         this.seedIfEmpty();
@@ -53,17 +58,17 @@ export class WebLocalStore implements FieldServiceStore {
 
   private seedIfEmpty() {
     this.registraties = buildSeedRegistraties();
-    this.bank = buildSeedBank();
+    this.overurenWeken = buildSeedOverurenWeken(this.registraties);
     this.reizen = [];
   }
 
   private persist() {
     if (typeof localStorage === 'undefined') return;
     const snap: Snapshot = {
-      version: 1,
+      version: 2,
       settings: this.settings,
       registraties: this.registraties,
-      bank: this.bank,
+      overurenWeken: this.overurenWeken,
       reizen: this.reizen,
       seeded: true,
     };
@@ -86,8 +91,7 @@ export class WebLocalStore implements FieldServiceStore {
     return [...this.registraties];
   }
   async nextRegistratieId() {
-    const max = this.registraties.reduce((m, r) => Math.max(m, r.RegistratieID), 0);
-    return max + 1;
+    return this.registraties.reduce((m, r) => Math.max(m, r.RegistratieID), 0) + 1;
   }
   async upsertRegistratie(row: WerkRegistratie) {
     const idx = this.registraties.findIndex((r) => r.RegistratieID === row.RegistratieID);
@@ -103,17 +107,17 @@ export class WebLocalStore implements FieldServiceStore {
     this.persist();
   }
 
-  async listBank() {
-    return [...this.bank];
+  async listOverurenWeken() {
+    return [...this.overurenWeken];
   }
-  async upsertBank(row: CompensatieBankRegel) {
-    const idx = this.bank.findIndex((b) => b.id === row.id);
-    if (idx >= 0) this.bank[idx] = row;
-    else this.bank.push(row);
+  async upsertOverurenWeek(row: OverurenWeek) {
+    const idx = this.overurenWeken.findIndex((w) => w.id === row.id);
+    if (idx >= 0) this.overurenWeken[idx] = row;
+    else this.overurenWeken.push(row);
     this.persist();
   }
-  async deleteBank(id: string) {
-    this.bank = this.bank.filter((b) => b.id !== id);
+  async deleteOverurenWeek(id: string) {
+    this.overurenWeken = this.overurenWeken.filter((w) => w.id !== id);
     this.persist();
   }
 

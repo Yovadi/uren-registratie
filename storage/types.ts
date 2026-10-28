@@ -1,6 +1,6 @@
 import type {
   AppSettings,
-  CompensatieBankRegel,
+  OverurenWeek,
   ReisPlan,
   WerkRegistratie,
 } from '@/domain/types';
@@ -16,9 +16,9 @@ export interface FieldServiceStore {
   deleteRegistratie(id: number): Promise<void>;
   nextRegistratieId(): Promise<number>;
 
-  listBank(): Promise<CompensatieBankRegel[]>;
-  upsertBank(row: CompensatieBankRegel): Promise<void>;
-  deleteBank(id: string): Promise<void>;
+  listOverurenWeken(): Promise<OverurenWeek[]>;
+  upsertOverurenWeek(row: OverurenWeek): Promise<void>;
+  deleteOverurenWeek(id: string): Promise<void>;
 
   listReizen(): Promise<ReisPlan[]>;
   upsertReis(row: ReisPlan): Promise<void>;

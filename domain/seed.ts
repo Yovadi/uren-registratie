@@ -1,5 +1,10 @@
 import { enrichRegistratie, recomputeDayCompensation } from './compensation';
-import type { CompensatieBankRegel, WerkRegistratie } from './types';
+import {
+  buildWeekSnapshots,
+  createSubmissionFromSnapshot,
+  approveWeek,
+} from './overtime-weeks';
+import type { OverurenWeek, WerkRegistratie } from './types';
 
 const KLANTEN = [
   'FarmPlus NL',
@@ -10,8 +15,22 @@ const KLANTEN = [
   'AquaFeed DK',
   'Speria Demo',
 ];
-const LANDEN = ['Nederland', 'Duitsland', 'Polen', 'Verenigd Koninkrijk', 'Verenigde Staten', 'Denemarken', 'VAE'];
-const PROJECTEN = ['Commissioning L12', 'Service contract', 'Storing compressor', 'Upgrade climate', 'Training operators'];
+const LANDEN = [
+  'Nederland',
+  'Duitsland',
+  'Polen',
+  'Verenigd Koninkrijk',
+  'Verenigde Staten',
+  'Denemarken',
+  'VAE',
+];
+const PROJECTEN = [
+  'Commissioning L12',
+  'Service contract',
+  'Storing compressor',
+  'Upgrade climate',
+  'Training operators',
+];
 const MEDEWERKERS = ['Jan de Vries', 'Sara Bakker', 'Tom Jansen'];
 
 function pad(n: number) {
@@ -24,11 +43,12 @@ function dateStr(y: number, m: number, d: number) {
 
 /**
  * Deterministic demo dataset spanning ~5 years for dashboards / charts.
- * Safe to regenerate; IDs start at 1.
  */
 export function buildSeedRegistraties(now = new Date()): WerkRegistratie[] {
-  const rows: Omit<WerkRegistratie, 'Uren' | 'CompensabeleUren' | 'Weekdagnummer' | 'DagType'>[] =
-    [];
+  const rows: Omit<
+    WerkRegistratie,
+    'Uren' | 'CompensabeleUren' | 'Weekdagnummer' | 'DagType'
+  >[] = [];
   let id = 1;
   const endY = now.getFullYear();
   const startY = endY - 4;
@@ -36,7 +56,6 @@ export function buildSeedRegistraties(now = new Date()): WerkRegistratie[] {
   for (let y = startY; y <= endY; y++) {
     for (let m = 1; m <= 12; m++) {
       if (y === endY && m > now.getMonth() + 1) break;
-      // ~6–10 registrations per month
       const count = 6 + ((y + m) % 5);
       for (let i = 0; i < count; i++) {
         const day = 1 + ((i * 3 + m) % 26);
@@ -48,7 +67,6 @@ export function buildSeedRegistraties(now = new Date()): WerkRegistratie[] {
         const land = LANDEN[(id + m) % LANDEN.length];
         const project = PROJECTEN[(id + i) % PROJECTEN.length];
 
-        // Weekday work block
         if (dow !== 0 && dow !== 6) {
           rows.push({
             RegistratieID: id++,
@@ -119,33 +137,27 @@ export function buildSeedRegistraties(now = new Date()): WerkRegistratie[] {
     }
   }
 
-  const enriched = rows.map((r) => enrichRegistratie(r));
-  return recomputeDayCompensation(enriched);
+  return recomputeDayCompensation(rows.map((r) => enrichRegistratie(r)));
 }
 
-export function buildSeedBank(): CompensatieBankRegel[] {
-  const y = new Date().getFullYear();
-  return [
-    {
-      id: 'bank_1',
-      Datum: `${y - 1}-12-15`,
-      Omschrijving: 'Opname TVT feestdagen',
-      PlusUren: 0,
-      MinUren: 16,
-    },
-    {
-      id: 'bank_2',
-      Datum: `${y}-01-10`,
-      Omschrijving: 'Correctie stand-by weekend',
-      PlusUren: 4,
-      MinUren: 0,
-    },
-    {
-      id: 'bank_3',
-      Datum: `${y}-03-01`,
-      Omschrijving: 'Opname TVT privé',
-      PlusUren: 0,
-      MinUren: 8,
-    },
-  ];
+/** Seed a mix of submitted / approved overtime weeks for demo. */
+export function buildSeedOverurenWeken(registraties: WerkRegistratie[]): OverurenWeek[] {
+  const snaps = buildWeekSnapshots(registraties).slice(0, 12);
+  return snaps.map((snap, i) => {
+    const submitted = createSubmissionFromSnapshot(snap, 'Demo-indiening (vervangt Excel-week)');
+    if (i % 3 === 0) {
+      return approveWeek(submitted, 'Service Manager', i % 2 === 0 ? 'TVT' : 'Uitbetaling');
+    }
+    if (i % 3 === 1) {
+      return {
+        ...submitted,
+        status: 'afgewezen',
+        beoordeeldOp: new Date().toISOString(),
+        beoordeeldDoor: 'Service Manager',
+        afwijzingsReden: 'Pauze niet correct; graag corrigeren',
+        verwerking: null,
+      };
+    }
+    return submitted; // pending manager
+  });
 }

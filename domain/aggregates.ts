@@ -7,9 +7,9 @@ import {
 } from './compensation';
 import type {
   AppSettings,
-  CompensatieBankRegel,
   DashboardFilters,
   DashboardKpis,
+  OverurenWeek,
   WerkRegistratie,
 } from './types';
 
@@ -45,27 +45,9 @@ function overurenForRow(r: WerkRegistratie, allSameDay: WerkRegistratie[]): numb
   });
 }
 
-export function computeTvtSaldo(
-  registraties: WerkRegistratie[],
-  bank: CompensatieBankRegel[],
-): number {
-  const earned = registraties.reduce((s, r) => s + r.CompensabeleUren, 0);
-  // Norm credit is already inside CompensabeleUren; TVT bank tracks withdraw/deposit.
-  // Spec: saldo = plus - min on bank, plus automatic compensabele from work.
-  // Practical: TVT saldo = sum(CompensabeleUren) - sum(norm work hours) + bank net
-  // Better interpretation: CompensabeleUren is the TVT credit; bank adjusts saldo.
-  const bankNet = bank.reduce((s, b) => s + b.PlusUren - b.MinUren, 0);
-  // Net TVT = overtime-weighted surplus vs 1:1 hours on work/travel + bank
-  const clock = registraties
-    .filter((r) => isWorkActivity(r.Activiteit) || isTravelActivity(r.Activiteit))
-    .reduce((s, r) => s + r.Uren, 0);
-  const surplus = earned - clock; // pure premium part + bank
-  return round2(surplus + bankNet);
-}
-
 export function computeKpis(
   all: WerkRegistratie[],
-  bank: CompensatieBankRegel[],
+  overurenWeken: OverurenWeek[],
   filters: DashboardFilters,
   settings: AppSettings,
 ): DashboardKpis {
@@ -104,7 +86,8 @@ export function computeKpis(
   return {
     overurenDezeMaand: sumOvertime(thisMonth),
     overurenDitJaar: sumOvertime(thisYear),
-    tvtSaldo: computeTvtSaldo(filtered, bank),
+    wekenTeBeoordelen: overurenWeken.filter((w) => w.status === 'ingediend').length,
+    wekenGoedgekeurd: overurenWeken.filter((w) => w.status === 'goedgekeurd').length,
     werkurenDezeMaand: round2(
       thisMonth.filter((r) => isWorkActivity(r.Activiteit)).reduce((s, r) => s + r.Uren, 0),
     ),
@@ -191,18 +174,6 @@ export function urenPerActiviteit(rows: WerkRegistratie[]): NamedValue[] {
     .map(([name, value]) => ({ name, value: round2(value) }))
     .filter((x) => x.value > 0)
     .sort((a, b) => b.value - a.value);
-}
-
-export function bankWithRunningSaldo(
-  bank: CompensatieBankRegel[],
-  opening = 0,
-): Array<CompensatieBankRegel & { Saldo: number }> {
-  const sorted = [...bank].sort((a, b) => a.Datum.localeCompare(b.Datum));
-  let saldo = opening;
-  return sorted.map((row) => {
-    saldo = round2(saldo + row.PlusUren - row.MinUren);
-    return { ...row, Saldo: saldo };
-  });
 }
 
 export function uniqueSorted(values: string[]): string[] {

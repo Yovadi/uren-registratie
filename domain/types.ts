@@ -51,13 +51,31 @@ export type WerkRegistratie = {
   DagType: DagType;
 };
 
-export type CompensatieBankRegel = {
+/** Weekly overtime package — replaces Excel week-send + manager check */
+export type OverurenWeekStatus = 'concept' | 'ingediend' | 'goedgekeurd' | 'afgewezen';
+
+/** After manager approval: TVT bank (other system) or payout allowance */
+export type VerwerkingKeuze = 'TVT' | 'Uitbetaling';
+
+export type OverurenWeek = {
   id: string;
-  Datum: string;
-  Omschrijving: string;
-  PlusUren: number;
-  MinUren: number;
+  weekStart: string; // Monday YYYY-MM-DD
+  weekEnd: string;
+  medewerker: string;
+  status: OverurenWeekStatus;
+  overurenKlok: number;
+  compensabeleUren: number;
+  registratieIds: number[];
+  ingediendOp: string | null;
+  beoordeeldOp: string | null;
+  beoordeeldDoor: string | null;
+  afwijzingsReden: string | null;
+  /** Set when manager approves */
+  verwerking: VerwerkingKeuze | null;
+  opmerking: string;
 };
+
+export type AppRol = 'medewerker' | 'manager';
 
 export type ReisPlan = {
   id: string;
@@ -79,13 +97,18 @@ export type AppSettings = {
   normUrenPerDag: number;
   /** Buitenlandtoelage in euro per buitenland-dag */
   buitenlandToelagePerDag: number;
+  /** UI-rol: medewerker dient weken in; manager keurt goed */
+  rol: AppRol;
+  managerNaam: string;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  medewerkerNaam: 'Field Service Engineer',
+  medewerkerNaam: 'Jan de Vries',
   defaultLand: 'Nederland',
   normUrenPerDag: 8,
   buitenlandToelagePerDag: 55,
+  rol: 'medewerker',
+  managerNaam: 'Service Manager',
 };
 
 export type DashboardFilters = {
@@ -99,7 +122,8 @@ export type DashboardFilters = {
 export type DashboardKpis = {
   overurenDezeMaand: number;
   overurenDitJaar: number;
-  tvtSaldo: number;
+  wekenTeBeoordelen: number;
+  wekenGoedgekeurd: number;
   werkurenDezeMaand: number;
   reisurenDezeMaand: number;
   hotelBinnenlandDezeMaand: number;

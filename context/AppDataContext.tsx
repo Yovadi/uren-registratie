@@ -11,8 +11,8 @@ import {
   DEFAULT_SETTINGS,
   enrichRegistratie,
   type AppSettings,
-  type CompensatieBankRegel,
   type DashboardFilters,
+  type OverurenWeek,
   type ReisPlan,
   type WerkRegistratie,
 } from '@/domain';
@@ -23,20 +23,21 @@ type Ctx = {
   error: string | null;
   settings: AppSettings;
   registraties: WerkRegistratie[];
-  bank: CompensatieBankRegel[];
+  overurenWeken: OverurenWeek[];
   reizen: ReisPlan[];
   filters: DashboardFilters;
   setFilters: (f: DashboardFilters) => void;
   refresh: () => Promise<void>;
   saveSettings: (s: AppSettings) => Promise<void>;
   saveRegistratie: (
-    input: Omit<WerkRegistratie, 'Uren' | 'CompensabeleUren' | 'Weekdagnummer' | 'DagType' | 'RegistratieID'> & {
-      RegistratieID?: number;
-    },
+    input: Omit<
+      WerkRegistratie,
+      'Uren' | 'CompensabeleUren' | 'Weekdagnummer' | 'DagType' | 'RegistratieID'
+    > & { RegistratieID?: number },
   ) => Promise<WerkRegistratie>;
   removeRegistratie: (id: number) => Promise<void>;
-  saveBank: (row: CompensatieBankRegel) => Promise<void>;
-  removeBank: (id: string) => Promise<void>;
+  saveOverurenWeek: (row: OverurenWeek) => Promise<void>;
+  removeOverurenWeek: (id: string) => Promise<void>;
   saveReis: (row: ReisPlan) => Promise<void>;
   removeReis: (id: string) => Promise<void>;
   resetDemoData: () => Promise<void>;
@@ -61,20 +62,20 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [registraties, setRegistraties] = useState<WerkRegistratie[]>([]);
-  const [bank, setBank] = useState<CompensatieBankRegel[]>([]);
+  const [overurenWeken, setOverurenWeken] = useState<OverurenWeek[]>([]);
   const [reizen, setReizen] = useState<ReisPlan[]>([]);
   const [filters, setFilters] = useState<DashboardFilters>(defaultFilters);
 
   const hydrate = useCallback(async (s: FieldServiceStore) => {
-    const [st, regs, bk, rz] = await Promise.all([
+    const [st, regs, ow, rz] = await Promise.all([
       s.getSettings(),
       s.listRegistraties(),
-      s.listBank(),
+      s.listOverurenWeken(),
       s.listReizen(),
     ]);
     setSettings(st);
     setRegistraties(regs);
-    setBank(bk);
+    setOverurenWeken(ow);
     setReizen(rz);
   }, []);
 
@@ -116,9 +117,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const saveRegistratie = useCallback(
     async (
-      input: Omit<WerkRegistratie, 'Uren' | 'CompensabeleUren' | 'Weekdagnummer' | 'DagType' | 'RegistratieID'> & {
-        RegistratieID?: number;
-      },
+      input: Omit<
+        WerkRegistratie,
+        'Uren' | 'CompensabeleUren' | 'Weekdagnummer' | 'DagType' | 'RegistratieID'
+      > & { RegistratieID?: number },
     ) => {
       if (!store) throw new Error('Store not ready');
       const id = input.RegistratieID ?? (await store.nextRegistratieId());
@@ -140,20 +142,20 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     [store],
   );
 
-  const saveBank = useCallback(
-    async (row: CompensatieBankRegel) => {
+  const saveOverurenWeek = useCallback(
+    async (row: OverurenWeek) => {
       if (!store) throw new Error('Store not ready');
-      await store.upsertBank(row);
-      setBank(await store.listBank());
+      await store.upsertOverurenWeek(row);
+      setOverurenWeken(await store.listOverurenWeken());
     },
     [store],
   );
 
-  const removeBank = useCallback(
+  const removeOverurenWeek = useCallback(
     async (id: string) => {
       if (!store) throw new Error('Store not ready');
-      await store.deleteBank(id);
-      setBank(await store.listBank());
+      await store.deleteOverurenWeek(id);
+      setOverurenWeken(await store.listOverurenWeken());
     },
     [store],
   );
@@ -178,9 +180,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const resetDemoData = useCallback(async () => {
     if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('hotraco-speria-fsm:v2');
       localStorage.removeItem('hotraco-speria-fsm:v1');
     }
-    // Force re-init by recreating — simplest: reload page on web
     if (typeof window !== 'undefined') {
       window.location.reload();
       return;
@@ -194,7 +196,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       error,
       settings,
       registraties,
-      bank,
+      overurenWeken,
       reizen,
       filters,
       setFilters,
@@ -202,8 +204,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       saveSettings,
       saveRegistratie,
       removeRegistratie,
-      saveBank,
-      removeBank,
+      saveOverurenWeek,
+      removeOverurenWeek,
       saveReis,
       removeReis,
       resetDemoData,
@@ -213,15 +215,15 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       error,
       settings,
       registraties,
-      bank,
+      overurenWeken,
       reizen,
       filters,
       refresh,
       saveSettings,
       saveRegistratie,
       removeRegistratie,
-      saveBank,
-      removeBank,
+      saveOverurenWeek,
+      removeOverurenWeek,
       saveReis,
       removeReis,
       resetDemoData,

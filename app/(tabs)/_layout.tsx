@@ -39,11 +39,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="tvt"
+        name="overuren"
         options={{
-          title: 'TVT',
+          title: 'Overuren',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="wallet-outline" size={size} color={String(color)} />
+            <Ionicons name="checkmark-done-outline" size={size} color={String(color)} />
           ),
         }}
       />

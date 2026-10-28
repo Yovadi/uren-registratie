@@ -50,7 +50,8 @@ const MONTHS = [
 
 export default function DashboardScreen() {
   const theme = useTheme();
-  const { ready, error, registraties, bank, filters, setFilters, settings } = useAppData();
+  const { ready, error, registraties, overurenWeken, filters, setFilters, settings } =
+    useAppData();
 
   const years = useMemo(() => {
     const ys = uniqueSorted(registraties.map((r) => r.Datum.slice(0, 4)));
@@ -75,8 +76,8 @@ export default function DashboardScreen() {
     [registraties, filters],
   );
   const kpis = useMemo(
-    () => computeKpis(registraties, bank, filters, settings),
-    [registraties, bank, filters, settings],
+    () => computeKpis(registraties, overurenWeken, filters, settings),
+    [registraties, overurenWeken, filters, settings],
   );
   const chartYear = filters.jaar === 'all' ? new Date().getFullYear() : filters.jaar;
 
@@ -101,7 +102,7 @@ export default function DashboardScreen() {
     <Screen>
       <AppHeader
         title="Field Service Manager"
-        subtitle="Werkuren · reizen · TVT · analyses"
+        subtitle="Werkuren · overuren-goedkeuring · reizen · analyses"
       />
       <Content>
         <ScrollView contentContainerStyle={styles.scroll}>
@@ -207,9 +208,15 @@ export default function DashboardScreen() {
               tone="accent"
             />
             <KpiTile
-              label="TVT saldo"
-              value={formatHours(kpis.tvtSaldo)}
-              icon="wallet-outline"
+              label="Weken ter goedkeuring"
+              value={String(kpis.wekenTeBeoordelen)}
+              icon="hourglass-outline"
+              tone="accent"
+            />
+            <KpiTile
+              label="Weken goedgekeurd"
+              value={String(kpis.wekenGoedgekeurd)}
+              icon="checkmark-circle-outline"
               tone="secondary"
             />
             <KpiTile

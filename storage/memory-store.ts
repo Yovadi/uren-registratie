@@ -1,22 +1,26 @@
-import { DEFAULT_SETTINGS, buildSeedBank, buildSeedRegistraties, recomputeDayCompensation } from '@/domain';
+import {
+  DEFAULT_SETTINGS,
+  buildSeedOverurenWeken,
+  buildSeedRegistraties,
+  recomputeDayCompensation,
+} from '@/domain';
 import type {
   AppSettings,
-  CompensatieBankRegel,
+  OverurenWeek,
   ReisPlan,
   WerkRegistratie,
 } from '@/domain/types';
 import type { FieldServiceStore } from './types';
 
-/** In-memory store (native fallback / tests). Seeds demo data. */
 export class MemoryStore implements FieldServiceStore {
   private settings: AppSettings = { ...DEFAULT_SETTINGS };
   private registraties: WerkRegistratie[] = [];
-  private bank: CompensatieBankRegel[] = [];
+  private overurenWeken: OverurenWeek[] = [];
   private reizen: ReisPlan[] = [];
 
   async init() {
     this.registraties = buildSeedRegistraties();
-    this.bank = buildSeedBank();
+    this.overurenWeken = buildSeedOverurenWeken(this.registraties);
   }
 
   async getSettings() {
@@ -42,16 +46,16 @@ export class MemoryStore implements FieldServiceStore {
       this.registraties.filter((r) => r.RegistratieID !== id),
     );
   }
-  async listBank() {
-    return [...this.bank];
+  async listOverurenWeken() {
+    return [...this.overurenWeken];
   }
-  async upsertBank(row: CompensatieBankRegel) {
-    const i = this.bank.findIndex((b) => b.id === row.id);
-    if (i >= 0) this.bank[i] = row;
-    else this.bank.push(row);
+  async upsertOverurenWeek(row: OverurenWeek) {
+    const i = this.overurenWeken.findIndex((w) => w.id === row.id);
+    if (i >= 0) this.overurenWeken[i] = row;
+    else this.overurenWeken.push(row);
   }
-  async deleteBank(id: string) {
-    this.bank = this.bank.filter((b) => b.id !== id);
+  async deleteOverurenWeek(id: string) {
+    this.overurenWeken = this.overurenWeken.filter((w) => w.id !== id);
   }
   async listReizen() {
     return [...this.reizen];

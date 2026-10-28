@@ -3,14 +3,25 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Text } from '@/components/Themed';
-import { AppHeader, Content, FieldInput, FieldLabel, PrimaryButton, Screen } from '@/components/ui';
+import {
+  AppHeader,
+  Chip,
+  Content,
+  FieldInput,
+  FieldLabel,
+  PrimaryButton,
+  Screen,
+} from '@/components/ui';
 import { useAppData } from '@/context/AppDataContext';
 import { Brand } from '@/constants/Colors';
+import type { AppRol } from '@/domain';
 import { useState } from 'react';
 
 export default function MeerScreen() {
   const { settings, saveSettings, resetDemoData } = useAppData();
   const [naam, setNaam] = useState(settings.medewerkerNaam);
+  const [manager, setManager] = useState(settings.managerNaam);
+  const [rol, setRol] = useState<AppRol>(settings.rol ?? 'medewerker');
   const [land, setLand] = useState(settings.defaultLand);
   const [tarief, setTarief] = useState(String(settings.buitenlandToelagePerDag ?? 55));
   const [saved, setSaved] = useState(false);
@@ -29,9 +40,29 @@ export default function MeerScreen() {
             label="Hotel & buitenlandtoelage"
           />
 
+          <Text style={styles.section}>Rol (demo)</Text>
+          <View style={styles.chips}>
+            <Chip
+              label="Medewerker"
+              selected={rol === 'medewerker'}
+              onPress={() => setRol('medewerker')}
+            />
+            <Chip
+              label="Manager"
+              selected={rol === 'manager'}
+              onPress={() => setRol('manager')}
+            />
+          </View>
+          <Text style={styles.hint}>
+            Medewerker dient overuren-weken in. Manager keurt goed en kiest TVT of
+            uitbetaling (verwerking gebeurt in andere systemen).
+          </Text>
+
           <Text style={styles.section}>Instellingen</Text>
-          <FieldLabel>Standaard medewerker</FieldLabel>
+          <FieldLabel>Medewerkernaam</FieldLabel>
           <FieldInput value={naam} onChangeText={setNaam} />
+          <FieldLabel>Managernaam</FieldLabel>
+          <FieldInput value={manager} onChangeText={setManager} />
           <FieldLabel>Thuisland</FieldLabel>
           <FieldInput value={land} onChangeText={setLand} />
           <Text style={styles.hint}>
@@ -50,7 +81,9 @@ export default function MeerScreen() {
               const n = Number(String(tarief).replace(',', '.'));
               await saveSettings({
                 ...settings,
+                rol,
                 medewerkerNaam: naam.trim() || settings.medewerkerNaam,
+                managerNaam: manager.trim() || settings.managerNaam,
                 defaultLand: land.trim() || settings.defaultLand,
                 buitenlandToelagePerDag: Number.isFinite(n) && n >= 0 ? n : 55,
               });
@@ -96,6 +129,7 @@ function LinkRow({
 const styles = StyleSheet.create({
   scroll: { padding: 16, paddingBottom: 48 },
   section: { fontSize: 16, fontWeight: '800', marginTop: 8, marginBottom: 8 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
   linkRow: {
     flexDirection: 'row',
     alignItems: 'center',
