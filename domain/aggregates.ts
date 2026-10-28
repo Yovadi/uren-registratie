@@ -86,9 +86,7 @@ export function computeKpis(
   return {
     overurenDezeMaand: sumOvertime(thisMonth),
     overurenDitJaar: sumOvertime(thisYear),
-    wekenTeBeoordelen: overurenWeken.filter(
-      (w) => w.status === 'ingediend' || w.status === 'info_gevraagd',
-    ).length,
+    wekenTeBeoordelen: overurenWeken.filter((w) => w.status === 'ingediend').length,
     wekenGoedgekeurd: overurenWeken.filter((w) => w.status === 'goedgekeurd').length,
     werkurenDezeMaand: round2(
       thisMonth.filter((r) => isWorkActivity(r.Activiteit)).reduce((s, r) => s + r.Uren, 0),
