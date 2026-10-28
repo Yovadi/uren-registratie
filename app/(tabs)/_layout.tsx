@@ -3,15 +3,18 @@ import { Tabs } from 'expo-router';
 import { useMemo } from 'react';
 import { Platform } from 'react-native';
 
+import { useTheme } from '@/components/ui';
 import { Brand } from '@/constants/Colors';
 import { useAppData } from '@/context/AppDataContext';
 import { useAuth } from '@/context/AuthContext';
 
 export default function TabLayout() {
+  const theme = useTheme();
   const { session } = useAuth();
   const { overurenWeken, settings } = useAppData();
   const isManager = session?.rol === 'manager' || settings.rol === 'manager';
   const myName = session?.naam ?? settings.medewerkerNaam;
+  const dark = settings.thema === 'dark';
 
   const badge = useMemo(() => {
     if (isManager) {
@@ -28,12 +31,12 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Brand.primary,
-        tabBarInactiveTintColor: '#8A9AAB',
+        tabBarActiveTintColor: dark ? theme.tint : Brand.primary,
+        tabBarInactiveTintColor: theme.tabIconDefault,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
         tabBarStyle: {
-          backgroundColor: '#fff',
-          borderTopColor: Brand.border,
+          backgroundColor: theme.tabBar,
+          borderTopColor: theme.border,
           height: Platform.OS === 'web' ? 64 : undefined,
           paddingTop: Platform.OS === 'web' ? 6 : undefined,
           paddingBottom: Platform.OS === 'web' ? 8 : undefined,

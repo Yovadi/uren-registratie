@@ -64,14 +64,19 @@ export function KpiTile({
   icon: keyof typeof Ionicons.glyphMap;
   tone?: 'primary' | 'secondary' | 'accent';
 }) {
+  const theme = useTheme();
   const color =
     tone === 'secondary' ? Brand.secondary : tone === 'accent' ? Brand.accent : Brand.primary;
   return (
-    <View style={[styles.kpi, { borderColor: Brand.border }]}>
+    <View
+      style={[
+        styles.kpi,
+        { borderColor: theme.border, backgroundColor: theme.surface },
+      ]}>
       <View style={[styles.kpiIcon, { backgroundColor: `${color}22` }]}>
         <Ionicons name={icon} size={18} color={color} />
       </View>
-      <Text style={styles.kpiLabel}>{label}</Text>
+      <Text style={[styles.kpiLabel, { color: theme.textMuted }]}>{label}</Text>
       <Text style={[styles.kpiValue, { color }]}>{value}</Text>
     </View>
   );
@@ -101,7 +106,8 @@ export function PrimaryButton({
 }
 
 export function FieldLabel({ children }: { children: ReactNode }) {
-  return <Text style={styles.label}>{children}</Text>;
+  const theme = useTheme();
+  return <Text style={[styles.label, { color: theme.textMuted }]}>{children}</Text>;
 }
 
 export function FieldInput(props: TextInputProps) {
@@ -132,6 +138,7 @@ export function Chip({
   selected?: boolean;
   onPress: () => void;
 }) {
+  const theme = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
@@ -139,11 +146,11 @@ export function Chip({
       style={[
         styles.chip,
         {
-          backgroundColor: selected ? Brand.primary : Brand.surface,
-          borderColor: selected ? Brand.primary : Brand.border,
+          backgroundColor: selected ? Brand.primary : theme.surface,
+          borderColor: selected ? Brand.primary : theme.border,
         },
       ]}>
-      <Text style={{ color: selected ? '#fff' : Brand.text, fontSize: 13, fontWeight: '600' }}>
+      <Text style={{ color: selected ? '#fff' : theme.text, fontSize: 13, fontWeight: '600' }}>
         {label}
       </Text>
     </Pressable>
@@ -191,7 +198,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexBasis: Platform.OS === 'web' ? 160 : '46%',
     minWidth: Platform.OS === 'web' ? 150 : '46%',
-    backgroundColor: Brand.surface,
     borderWidth: 1,
     borderRadius: 14,
     padding: 14,
@@ -204,7 +210,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  kpiLabel: { fontSize: 12, color: Brand.textMuted, fontWeight: '600' },
+  kpiLabel: { fontSize: 12, fontWeight: '600' },
   kpiValue: { fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
   primaryBtn: {
     marginTop: 10,
@@ -217,7 +223,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontWeight: '700',
-    color: Brand.textMuted,
     marginTop: 12,
     marginBottom: 6,
     textTransform: 'uppercase',

@@ -108,6 +108,8 @@ export type ReisPlan = {
   ReistijdMinuten: number;
 };
 
+export type AppThema = 'light' | 'dark';
+
 export type AppSettings = {
   medewerkerNaam: string;
   /** Thuisland — bepaalt hotel binnen/buitenland + buitenlandtoelage */
@@ -119,6 +121,8 @@ export type AppSettings = {
   /** UI-rol: medewerker dient weken in; manager keurt goed */
   rol: AppRol;
   managerNaam: string;
+  /** App appearance */
+  thema: AppThema;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -128,6 +132,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   buitenlandToelagePerDag: 55,
   rol: 'medewerker',
   managerNaam: 'Service Manager',
+  thema: 'light',
 };
 
 export type DashboardFilters = {
