@@ -45,7 +45,7 @@ export default function RootLayout() {
         />
         <Stack.Screen name="analyse/klant" options={{ title: 'Klantanalyse' }} />
         <Stack.Screen name="analyse/project" options={{ title: 'Projectanalyse' }} />
-        <Stack.Screen name="analyse/land" options={{ title: 'Landenanalyse' }} />
+        <Stack.Screen name="analyse/land" options={{ title: 'Hotel & toelage' }} />
       </Stack>
     </AppDataProvider>
   );

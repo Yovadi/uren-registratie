@@ -73,15 +73,19 @@ export type ReisPlan = {
 
 export type AppSettings = {
   medewerkerNaam: string;
+  /** Thuisland — bepaalt hotel binnen/buitenland + buitenlandtoelage */
   defaultLand: string;
   /** Normuren per dag (spec: 8) */
   normUrenPerDag: number;
+  /** Buitenlandtoelage in euro per buitenland-dag */
+  buitenlandToelagePerDag: number;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
   medewerkerNaam: 'Field Service Engineer',
   defaultLand: 'Nederland',
   normUrenPerDag: 8,
+  buitenlandToelagePerDag: 55,
 };
 
 export type DashboardFilters = {
@@ -98,7 +102,9 @@ export type DashboardKpis = {
   tvtSaldo: number;
   werkurenDezeMaand: number;
   reisurenDezeMaand: number;
-  hotelnachtenDezeMaand: number;
+  hotelBinnenlandDezeMaand: number;
+  hotelBuitenlandDezeMaand: number;
+  buitenlandToelageDezeMaand: number;
+  buitenlandToelageDitJaar: number;
   aantalKlanten: number;
-  aantalLanden: number;
 };

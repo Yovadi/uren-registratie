@@ -1,3 +1,4 @@
+import { buitenlandToelageEuro, isBuitenland } from './allowances';
 import {
   computeOverurenKlok,
   isTravelActivity,
@@ -5,6 +6,7 @@ import {
   round2,
 } from './compensation';
 import type {
+  AppSettings,
   CompensatieBankRegel,
   DashboardFilters,
   DashboardKpis,
@@ -65,8 +67,11 @@ export function computeKpis(
   all: WerkRegistratie[],
   bank: CompensatieBankRegel[],
   filters: DashboardFilters,
+  settings: AppSettings,
 ): DashboardKpis {
   const filtered = applyFilters(all, filters);
+  const thuis = settings.defaultLand;
+  const tarief = settings.buitenlandToelagePerDag;
   const { y: cy, m: cm } = ymNow();
   const year = filters.jaar === 'all' ? cy : filters.jaar;
   const month = filters.maand === 'all' ? cm : filters.maand;
@@ -106,13 +111,20 @@ export function computeKpis(
     reisurenDezeMaand: round2(
       thisMonth.filter((r) => isTravelActivity(r.Activiteit)).reduce((s, r) => s + r.Uren, 0),
     ),
-    hotelnachtenDezeMaand: thisMonth.filter((r) => r.Hotelnacht).length,
+    hotelBinnenlandDezeMaand: thisMonth.filter(
+      (r) => r.Hotelnacht && !isBuitenland(r.Land, thuis),
+    ).length,
+    hotelBuitenlandDezeMaand: thisMonth.filter(
+      (r) => r.Hotelnacht && isBuitenland(r.Land, thuis),
+    ).length,
+    buitenlandToelageDezeMaand: buitenlandToelageEuro(thisMonth, thuis, tarief),
+    buitenlandToelageDitJaar: buitenlandToelageEuro(thisYear, thuis, tarief),
     aantalKlanten: new Set(filtered.map((r) => r.Klant).filter(Boolean)).size,
-    aantalLanden: new Set(filtered.map((r) => r.Land).filter(Boolean)).size,
   };
 }
 
-export type NamedValue = { name: string; value: number };
+export type { NamedValue } from './allowances';
+import type { NamedValue } from './allowances';
 
 export function overurenPerMaand(
   rows: WerkRegistratie[],

@@ -21,13 +21,14 @@ import {
 import { useAppData } from '@/context/AppDataContext';
 import {
   applyFilters,
+  buitenlandToelagePerMaand,
   computeKpis,
   formatHours,
+  hotelBinnenVsBuiten,
   overurenPerMaand,
   topKlanten,
   uniqueSorted,
   urenPerActiviteit,
-  urenPerLand,
   werkVsReis,
 } from '@/domain';
 import { Brand } from '@/constants/Colors';
@@ -49,7 +50,7 @@ const MONTHS = [
 
 export default function DashboardScreen() {
   const theme = useTheme();
-  const { ready, error, registraties, bank, filters, setFilters } = useAppData();
+  const { ready, error, registraties, bank, filters, setFilters, settings } = useAppData();
 
   const years = useMemo(() => {
     const ys = uniqueSorted(registraties.map((r) => r.Datum.slice(0, 4)));
@@ -74,8 +75,8 @@ export default function DashboardScreen() {
     [registraties, filters],
   );
   const kpis = useMemo(
-    () => computeKpis(registraties, bank, filters),
-    [registraties, bank, filters],
+    () => computeKpis(registraties, bank, filters, settings),
+    [registraties, bank, filters, settings],
   );
   const chartYear = filters.jaar === 'all' ? new Date().getFullYear() : filters.jaar;
 
@@ -222,20 +223,33 @@ export default function DashboardScreen() {
               icon="airplane-outline"
             />
             <KpiTile
-              label="Hotelnachten"
-              value={String(kpis.hotelnachtenDezeMaand)}
+              label="Hotel binnenland"
+              value={String(kpis.hotelBinnenlandDezeMaand)}
+              icon="home-outline"
+              tone="secondary"
+            />
+            <KpiTile
+              label="Hotel buitenland"
+              value={String(kpis.hotelBuitenlandDezeMaand)}
               icon="bed-outline"
               tone="secondary"
+            />
+            <KpiTile
+              label="Buitenlandtoelage (mnd)"
+              value={`€ ${Math.round(kpis.buitenlandToelageDezeMaand)}`}
+              icon="cash-outline"
+              tone="accent"
+            />
+            <KpiTile
+              label="Buitenlandtoelage (jaar)"
+              value={`€ ${Math.round(kpis.buitenlandToelageDitJaar)}`}
+              icon="globe-outline"
+              tone="accent"
             />
             <KpiTile
               label="Klanten bezocht"
               value={String(kpis.aantalKlanten)}
               icon="business-outline"
-            />
-            <KpiTile
-              label="Landen bezocht"
-              value={String(kpis.aantalLanden)}
-              icon="globe-outline"
             />
           </View>
 
@@ -249,19 +263,45 @@ export default function DashboardScreen() {
             </Card>
             <Card style={styles.chartCard}>
               <Text style={styles.chartTitle}>Werkuren versus reisuren</Text>
-              <DonutChart data={werkVsReis(filtered)} />
+              <DonutChart data={werkVsReis(filtered)} centerSuffix="u" />
             </Card>
             <Card style={styles.chartCard}>
               <Text style={styles.chartTitle}>Top 10 klanten</Text>
               <BarChart data={topKlanten(filtered)} horizontal />
             </Card>
             <Card style={styles.chartCard}>
-              <Text style={styles.chartTitle}>Uren per land</Text>
-              <BarChart data={urenPerLand(filtered)} horizontal />
+              <Text style={styles.chartTitle}>
+                Hotelnachten binnen- vs buitenland
+              </Text>
+              <Text style={styles.chartHint}>
+                Thuisland: {settings.defaultLand}
+              </Text>
+              <DonutChart
+                data={hotelBinnenVsBuiten(filtered, settings.defaultLand)}
+                centerSuffix="nachten"
+              />
+            </Card>
+            <Card style={styles.chartCard}>
+              <Text style={styles.chartTitle}>
+                Buitenlandtoelage per maand ({chartYear})
+              </Text>
+              <Text style={styles.chartHint}>
+                €{settings.buitenlandToelagePerDag}/dag buitenland
+              </Text>
+              <ScrollView horizontal>
+                <BarChart
+                  data={buitenlandToelagePerMaand(
+                    filtered,
+                    chartYear,
+                    settings.defaultLand,
+                    settings.buitenlandToelagePerDag,
+                  )}
+                />
+              </ScrollView>
             </Card>
             <Card style={styles.chartCard}>
               <Text style={styles.chartTitle}>Uren per activiteit</Text>
-              <DonutChart data={urenPerActiviteit(filtered)} />
+              <DonutChart data={urenPerActiviteit(filtered)} centerSuffix="u" />
             </Card>
           </View>
         </ScrollView>
@@ -297,4 +337,5 @@ const styles = StyleSheet.create({
     minWidth: Platform.OS === 'web' ? 320 : undefined,
   },
   chartTitle: { fontSize: 15, fontWeight: '700', marginBottom: 4 },
+  chartHint: { fontSize: 12, color: Brand.textMuted, marginBottom: 6 },
 });

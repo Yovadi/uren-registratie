@@ -12,6 +12,7 @@ export default function MeerScreen() {
   const { settings, saveSettings, resetDemoData } = useAppData();
   const [naam, setNaam] = useState(settings.medewerkerNaam);
   const [land, setLand] = useState(settings.defaultLand);
+  const [tarief, setTarief] = useState(String(settings.buitenlandToelagePerDag ?? 55));
   const [saved, setSaved] = useState(false);
 
   return (
@@ -22,20 +23,36 @@ export default function MeerScreen() {
           <Text style={styles.section}>Analyse</Text>
           <LinkRow href="/analyse/klant" icon="business-outline" label="Klantanalyse" />
           <LinkRow href="/analyse/project" icon="folder-outline" label="Projectanalyse" />
-          <LinkRow href="/analyse/land" icon="globe-outline" label="Landenanalyse" />
+          <LinkRow
+            href="/analyse/land"
+            icon="globe-outline"
+            label="Hotel & buitenlandtoelage"
+          />
 
           <Text style={styles.section}>Instellingen</Text>
           <FieldLabel>Standaard medewerker</FieldLabel>
           <FieldInput value={naam} onChangeText={setNaam} />
-          <FieldLabel>Standaard land</FieldLabel>
+          <FieldLabel>Thuisland</FieldLabel>
           <FieldInput value={land} onChangeText={setLand} />
+          <Text style={styles.hint}>
+            Thuisland bepaalt of een hotelnacht binnen- of buitenland is, en of
+            buitenlandtoelage telt.
+          </Text>
+          <FieldLabel>Buitenlandtoelage (€ / dag)</FieldLabel>
+          <FieldInput
+            value={tarief}
+            onChangeText={setTarief}
+            keyboardType="decimal-pad"
+          />
           <PrimaryButton
             label={saved ? 'Opgeslagen' : 'Instellingen opslaan'}
             onPress={async () => {
+              const n = Number(String(tarief).replace(',', '.'));
               await saveSettings({
                 ...settings,
                 medewerkerNaam: naam.trim() || settings.medewerkerNaam,
                 defaultLand: land.trim() || settings.defaultLand,
+                buitenlandToelagePerDag: Number.isFinite(n) && n >= 0 ? n : 55,
               });
               setSaved(true);
             }}
