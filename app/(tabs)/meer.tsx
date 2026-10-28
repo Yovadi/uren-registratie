@@ -1,8 +1,9 @@
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
+import { HeaderLogout } from '@/components/HeaderLogout';
 import { Text } from '@/components/Themed';
 import {
   AppHeader,
@@ -23,12 +24,24 @@ export default function MeerScreen() {
   const theme = useTheme();
   const { session, logout } = useAuth();
   const { settings, saveSettings, resetDemoData } = useAppData();
-  const [land, setLand] = useState(settings.defaultLand);
-  const [tarief, setTarief] = useState(String(settings.buitenlandToelagePerDag ?? 55));
+  const thema: AppThema = settings.thema === 'dark' ? 'dark' : 'light';
+  const [land, setLand] = useState(settings.defaultLand ?? 'Nederland');
+  const [tarief, setTarief] = useState(
+    String(settings.buitenlandToelagePerDag ?? 55),
+  );
   const [saved, setSaved] = useState(false);
 
-  const setThema = async (thema: AppThema) => {
-    await saveSettings({ ...settings, thema });
+  useEffect(() => {
+    setLand(settings.defaultLand ?? 'Nederland');
+    setTarief(String(settings.buitenlandToelagePerDag ?? 55));
+  }, [settings.defaultLand, settings.buitenlandToelagePerDag]);
+
+  const setThema = async (next: AppThema) => {
+    try {
+      await saveSettings({ ...settings, thema: next });
+    } catch (e) {
+      console.warn('Thema opslaan mislukt', e);
+    }
   };
 
   return (
@@ -36,19 +49,16 @@ export default function MeerScreen() {
       <AppHeader
         title="Meer"
         subtitle={
-          session
-            ? `${session.naam} · ${session.rol}`
-            : 'Analyses & instellingen'
+          session ? `${session.naam} · ${session.rol}` : 'Analyses & instellingen'
         }
+        right={<HeaderLogout />}
       />
       <Content>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.account}>
             <Text style={[styles.section, { color: theme.text }]}>Account</Text>
             <Text style={[styles.hint, { color: theme.textMuted }]}>
-              Ingelogd als <Text style={{ fontWeight: '700' }}>{session?.naam}</Text> (
-              {session?.rol}). Managers zien de goedkeuringswachtrij; medewerkers dienen
-              weken in.
+              Ingelogd als {session?.naam ?? '—'} ({session?.rol ?? '—'}).
             </Text>
             <Pressable
               style={[styles.logout, { borderColor: Brand.primary }]}
@@ -56,9 +66,8 @@ export default function MeerScreen() {
                 logout();
                 router.replace('/login');
               }}>
-              <Text style={{ color: Brand.primary, fontWeight: '700' }}>
-                Uitloggen / wissel gebruiker
-              </Text>
+              <Ionicons name="log-out-outline" size={18} color={Brand.primary} />
+              <Text style={{ color: Brand.primary, fontWeight: '700' }}>Uitloggen</Text>
             </Pressable>
           </View>
 
@@ -71,31 +80,39 @@ export default function MeerScreen() {
             <View style={{ flex: 1 }}>
               <Text style={{ fontWeight: '700', color: theme.text }}>Donker thema</Text>
               <Text style={{ color: theme.textMuted, fontSize: 13, marginTop: 2 }}>
-                Beter leesbaar bij weinig licht / veldwerk ’s avonds
+                Beter leesbaar bij weinig licht
               </Text>
             </View>
             <Switch
-              value={settings.thema === 'dark'}
-              onValueChange={(on) => setThema(on ? 'dark' : 'light')}
+              value={thema === 'dark'}
+              onValueChange={(on) => void setThema(on ? 'dark' : 'light')}
               trackColor={{ true: Brand.primary, false: theme.border }}
             />
           </View>
           <View style={styles.chips}>
             <Chip
               label="Licht"
-              selected={settings.thema === 'light'}
-              onPress={() => setThema('light')}
+              selected={thema === 'light'}
+              onPress={() => void setThema('light')}
             />
             <Chip
               label="Donker"
-              selected={settings.thema === 'dark'}
-              onPress={() => setThema('dark')}
+              selected={thema === 'dark'}
+              onPress={() => void setThema('dark')}
             />
           </View>
 
           <Text style={[styles.section, { color: theme.text }]}>Analyse</Text>
-          <LinkRow href="/analyse/klant" icon="business-outline" label="Klantanalyse" />
-          <LinkRow href="/analyse/project" icon="folder-outline" label="Projectanalyse" />
+          <LinkRow
+            href="/analyse/klant"
+            icon="business-outline"
+            label="Klantanalyse"
+          />
+          <LinkRow
+            href="/analyse/project"
+            icon="folder-outline"
+            label="Projectanalyse"
+          />
           <LinkRow
             href="/analyse/land"
             icon="globe-outline"
@@ -108,7 +125,7 @@ export default function MeerScreen() {
           <Text style={[styles.hint, { color: theme.textMuted }]}>
             Bepaalt hotel binnen-/buitenland en buitenlandtoelage.
           </Text>
-          <FieldLabel>Buitenlandtoelage (€ / dag)</FieldLabel>
+          <FieldLabel>Buitenlandtoelage (EUR / dag)</FieldLabel>
           <FieldInput
             value={tarief}
             onChangeText={setTarief}
@@ -120,6 +137,7 @@ export default function MeerScreen() {
               const n = Number(String(tarief).replace(',', '.'));
               await saveSettings({
                 ...settings,
+                thema,
                 defaultLand: land.trim() || settings.defaultLand,
                 buitenlandToelagePerDag: Number.isFinite(n) && n >= 0 ? n : 55,
               });
@@ -131,7 +149,7 @@ export default function MeerScreen() {
             Demo data
           </Text>
           <Text style={[styles.hint, { color: theme.textMuted }]}>
-            Reset herlaadt ~5 jaar seed-data en wist lokale demo-opslag.
+            Reset herlaadt seed-data en wist lokale demo-opslag.
           </Text>
           <Pressable style={styles.reset} onPress={() => resetDemoData()}>
             <Text style={{ color: Brand.danger, fontWeight: '700' }}>Reset demo-data</Text>
@@ -153,19 +171,19 @@ function LinkRow({
 }) {
   const theme = useTheme();
   return (
-    <Link href={href} asChild>
-      <Pressable
-        style={[
-          styles.linkRow,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-        ]}>
-        <View style={styles.linkIcon}>
-          <Ionicons name={icon} size={18} color={Brand.primary} />
-        </View>
-        <Text style={[styles.linkLabel, { color: theme.text }]}>{label}</Text>
-        <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
-      </Pressable>
-    </Link>
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push(href)}
+      style={[
+        styles.linkRow,
+        { backgroundColor: theme.surface, borderColor: theme.border },
+      ]}>
+      <View style={styles.linkIcon}>
+        <Ionicons name={icon} size={18} color={Brand.primary} />
+      </View>
+      <Text style={[styles.linkLabel, { color: theme.text }]}>{label}</Text>
+      <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+    </Pressable>
   );
 }
 
@@ -208,6 +226,9 @@ const styles = StyleSheet.create({
     padding: 12,
     alignItems: 'center',
     marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
   },
   reset: {
     borderWidth: 1,

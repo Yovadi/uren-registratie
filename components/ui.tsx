@@ -18,13 +18,40 @@ export function useTheme() {
   return Colors[useColorScheme()];
 }
 
-export function AppHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+export function AppHeader({
+  title,
+  subtitle,
+  right,
+}: {
+  title: string;
+  subtitle?: string;
+  right?: ReactNode;
+}) {
   return (
     <View style={styles.header}>
-      <Text style={styles.brand}>Hotraco / Speria</Text>
-      <Text style={styles.headerTitle}>{title}</Text>
-      {subtitle ? <Text style={styles.headerSub}>{subtitle}</Text> : null}
+      <View style={styles.headerTop}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={styles.brand}>Hotraco / Speria</Text>
+          <Text style={styles.headerTitle}>{title}</Text>
+          {subtitle ? <Text style={styles.headerSub}>{subtitle}</Text> : null}
+        </View>
+        {right}
+      </View>
     </View>
+  );
+}
+
+/** Always-visible logout control for the header. */
+export function LogoutHeaderButton({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Uitloggen"
+      onPress={onPress}
+      style={styles.logoutHeaderBtn}>
+      <Ionicons name="log-out-outline" size={18} color="#fff" />
+      <Text style={styles.logoutHeaderText}>Uitloggen</Text>
+    </Pressable>
   );
 }
 
@@ -163,7 +190,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: Platform.OS === 'web' ? 18 : 12,
     paddingBottom: 16,
-    gap: 2,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
   },
   brand: {
     color: 'rgba(255,255,255,0.72)',
@@ -181,6 +212,19 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.75)',
     fontSize: 13,
   },
+  logoutHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  logoutHeaderText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   screen: { flex: 1 },
   content: {
     width: '100%',

@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 
+import { HeaderLogout } from '@/components/HeaderLogout';
 import { Text } from '@/components/Themed';
 import {
   AppHeader,
@@ -72,7 +73,11 @@ export default function ReizenScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Reisplanner" subtitle="Tijdzones & automatische reistijd" />
+      <AppHeader
+        title="Reisplanner"
+        subtitle="Tijdzones & automatische reistijd"
+        right={<HeaderLogout />}
+      />
       <Content>
         <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
           <FieldLabel>Vertrek locatie</FieldLabel>

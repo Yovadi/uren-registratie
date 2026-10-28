@@ -75,7 +75,11 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       s.listOverurenWeken(),
       s.listReizen(),
     ]);
-    setSettings(st);
+    setSettings({
+      ...DEFAULT_SETTINGS,
+      ...st,
+      thema: st.thema === 'dark' ? 'dark' : 'light',
+    });
     setRegistraties(regs);
     setOverurenWeken(ow);
     setReizen(rz);

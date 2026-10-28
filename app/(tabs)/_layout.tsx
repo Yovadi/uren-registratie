@@ -14,7 +14,7 @@ export default function TabLayout() {
   const { overurenWeken, settings } = useAppData();
   const isManager = session?.rol === 'manager' || settings.rol === 'manager';
   const myName = session?.naam ?? settings.medewerkerNaam;
-  const dark = settings.thema === 'dark';
+  const dark = (settings.thema ?? 'light') === 'dark';
 
   const badge = useMemo(() => {
     if (isManager) {

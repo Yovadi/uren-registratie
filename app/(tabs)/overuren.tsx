@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 
+import { HeaderLogout } from '@/components/HeaderLogout';
 import { Text } from '@/components/Themed';
 import {
   AppHeader,
@@ -163,6 +164,7 @@ export default function OverurenScreen() {
         <AppHeader
           title="Controle overuren"
           subtitle={`${session?.naam ?? 'Manager'} · ${pending} week(en) te controleren`}
+          right={<HeaderLogout />}
         />
         <Content>
           <View style={[styles.procedure, { backgroundColor: theme.tintSoft }]}>
@@ -420,7 +422,11 @@ export default function OverurenScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Overuren indienen" subtitle={`Ingelogd als ${myName}`} />
+      <AppHeader
+        title="Overuren indienen"
+        subtitle={`Ingelogd als ${myName}`}
+        right={<HeaderLogout />}
+      />
       <Content>
         <View style={styles.procedure}>
           <Text style={styles.procedureTitle}>Procedure</Text>

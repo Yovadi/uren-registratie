@@ -67,7 +67,7 @@ export default function RootLayout() {
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 <Stack.Screen
                   name="registratie/new"
-                  options={{ presentation: 'modal', title: 'Nieuwe registratie' }}
+                  options={{ presentation: 'modal', title: 'Week invoeren' }}
                 />
                 <Stack.Screen name="analyse/klant" options={{ title: 'Klantanalyse' }} />
                 <Stack.Screen name="analyse/project" options={{ title: 'Projectanalyse' }} />

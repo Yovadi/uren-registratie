@@ -9,6 +9,7 @@ import {
 
 import { BarChart, DonutChart } from '@/components/charts';
 import { Text } from '@/components/Themed';
+import { HeaderLogout } from '@/components/HeaderLogout';
 import {
   AppHeader,
   Card,
@@ -122,6 +123,7 @@ export default function DashboardScreen() {
       <AppHeader
         title="Field Service Manager"
         subtitle="Werkuren · overuren-goedkeuring · reizen · analyses"
+        right={<HeaderLogout />}
       />
       <Content>
         <ScrollView contentContainerStyle={styles.scroll}>

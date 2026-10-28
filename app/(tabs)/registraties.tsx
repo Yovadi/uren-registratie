@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 
+import { HeaderLogout } from '@/components/HeaderLogout';
 import { Text } from '@/components/Themed';
 import { AppHeader, Chip, Content, Screen, useTheme } from '@/components/ui';
 import { useAppData } from '@/context/AppDataContext';
@@ -72,14 +73,16 @@ export default function RegistratiesScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Werkregistraties" subtitle="Uren, reizen, hotelnachten" />
+      <AppHeader
+        title="Werkregistraties"
+        subtitle="Uren per week · reizen · hotelnachten"
+        right={<HeaderLogout />}
+      />
       <Content>
         <View style={styles.toolbar}>
-          <Link href="/registratie/new" asChild>
-            <Pressable style={styles.addBtn}>
-              <Text style={styles.addBtnText}>+ Nieuwe registratie</Text>
-            </Pressable>
-          </Link>
+          <Pressable style={styles.addBtn} onPress={() => router.push('/registratie/new')}>
+            <Text style={styles.addBtnText}>+ Week invoeren</Text>
+          </Pressable>
           <View style={styles.modeRow}>
             <Chip
               label="Kalender"
