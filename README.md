@@ -1,65 +1,41 @@
-# Urenregistratie
+# Hotraco / Speria Field Service Manager
 
-Expo-app (TypeScript + Expo Router) voor een reizende service engineer: **uren, overuren en tijdzones** — één codebase voor **web, iOS en Android**.
+Web-app voor Field Service Engineers, Service Managers en Planning.
 
-Solo offline nu (lokale SQLite achter een `HourStore`-interface); later uitbreidbaar naar sync/multi-user zonder de schermen te herschrijven.
+## Simpele link (aanbevolen)
 
-## Vereisten
+Open de app in de browser — geen Node, geen terminal:
 
-- Node.js 20+ (aanbevolen)
-- [Expo](https://docs.expo.dev/) / `npx`
+**https://yovadi.github.io/uren-registratie/**
 
-## Starten
+### Eenmalig aanzetten (repo-eigenaar)
+GitHub Pages staat nog niet aan. Doe dit **één keer**:
 
+1. Open https://github.com/Yovadi/uren-registratie/settings/pages  
+2. Onder **Build and deployment** → **Source**: kies **Deploy from a branch**  
+3. Branch: **`gh-pages`** / map **`/` (root)** → Save  
+
+Daarna werkt de link hierboven overal (ook in het buitenland).  
+Data blijft bewaard in de browser + via **Meer → Exporteer back-up**.
+
+### Login (demo)
+| Rol | PIN |
+|-----|-----|
+| Medewerker (Jan / Sara / Tom) | `1234` |
+| Manager | `9999` |
+
+## Back-up onderweg
+**Meer → Exporteer alle gegevens** → zet JSON in OneDrive/Teams.  
+Andere laptop: **Importeer back-up…**
+
+## Lokaal ontwikkelen (optioneel)
 ```bash
+git clone https://github.com/Yovadi/uren-registratie.git
+cd uren-registratie
 npm install
-npx expo start
+npx expo start --web
 ```
 
-Daarna:
-
-| Doel | Commando / actie |
-|------|------------------|
-| Web | `npx expo start --web` of druk `w` in de Expo CLI |
-| Android | `npx expo start --android` of druk `a` |
-| iOS | `npx expo start --ios` (macOS) of Expo Go-app |
-| Expo Go | Scan de QR-code met de Expo Go-app |
-
-## Wat zit er in deze scaffold
-
-| Onderdeel | Locatie |
-|-----------|---------|
-| Domain: `TimeEntry`, `WorkRules`, settings | `domain/` |
-| Overuren / weektotalen (placeholder) | `domain/time.ts` |
-| Tijdzone-helpers + common zones | `domain/timezone.ts` |
-| Storage-interface + SQLite + memory fallback | `storage/` |
-| React context boven de store | `context/AppDataContext.tsx` |
-| Week-overzicht | `app/(tabs)/index.tsx` |
-| Lijst + toevoegen uren | `app/(tabs)/entries.tsx`, `app/entry/new.tsx` |
-| Instellingen (thuis-TZ, uren/dag/week) | `app/(tabs)/settings.tsx` |
-
-## Productrichting (v1)
-
-1. Dagboek met start/eind, project, notitie, **site-tijdzone** per entry  
-2. **Thuis-tijdzone** in settings; weergave site vs thuis  
-3. Overuren t.o.v. standaard werkweek  
-4. Week/maand-overzicht; later CSV-export  
-
-Niet in v1: team, goedkeuring, expenses, GPS, facturatie.
-
-## Architectuur
-
-```
-UI (Expo Router screens)
-        ↓
-AppDataContext
-        ↓
-HourStore  ←── LocalSqliteStore (nu)
-           └── SyncedStore (later)
-        ↓
-domain/ (puur TypeScript, geen UI)
-```
-
-## Licentie
-
-Zie `LICENSE` (template van create-expo-app). Pas aan indien gewenst.
+## Overuren-procedure
+1. Week invoeren → medewerker kiest TVT of uitbetalen  
+2. Manager accepteert of wijst af (weeknummer + naam)
