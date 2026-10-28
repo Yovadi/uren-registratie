@@ -1,12 +1,13 @@
 {
   "expo": {
-    "name": "uren-registratie",
+    "name": "Urenregistratie",
     "slug": "uren-registratie",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "urenregistratie",
     "userInterfaceStyle": "automatic",
+    "platforms": ["ios", "android", "web"],
     "ios": {
       "supportsTablet": true
     },
@@ -33,7 +34,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true
