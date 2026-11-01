@@ -294,9 +294,10 @@ export function hasWorkOrTravel(rows: WerkRegistratie[]): boolean {
 
 /** Procedure steps for UI */
 export const INDIEN_PROCEDURE = [
-  'Je registreert uren in de app (zoals voorheen in Excel).',
+  'Je registreert uren per week in de app.',
   'Alleen weken mét overuren verschijnen hier (op weeknummer).',
   'Bij indienen kies jij: TVT of uitbetalen.',
-  'De manager controleert alleen: accepteren of afwijzen.',
-  'TVT-saldo / loonstrook worden in andere systemen verwerkt — niet in deze app.',
+  'Op een andere PC: exporteer het weekpakket (.json) en stuur via mail/OneDrive.',
+  'De manager importeert het pakket, accepteert of wijst af, en downloadt een PDF-archief.',
+  'TVT-saldo / loonstrook blijven in andere systemen.',
 ] as const;

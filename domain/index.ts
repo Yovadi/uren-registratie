@@ -11,3 +11,5 @@ export * from './export';
 export * from './week-summary';
 export * from './templates';
 export * from './backup';
+export * from './week-package';
+export * from './week-pdf';

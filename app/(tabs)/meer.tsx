@@ -23,8 +23,15 @@ import type { AppThema } from '@/domain';
 export default function MeerScreen() {
   const theme = useTheme();
   const { session, logout } = useAuth();
-  const { settings, saveSettings, resetDemoData, exportBackup, importBackup, registraties } =
-    useAppData();
+  const {
+    settings,
+    saveSettings,
+    resetDemoData,
+    exportBackup,
+    importBackup,
+    importWeekPackage,
+    registraties,
+  } = useAppData();
   const thema: AppThema = settings.thema === 'dark' ? 'dark' : 'light';
   const [land, setLand] = useState(settings.defaultLand ?? 'Nederland');
   const [tarief, setTarief] = useState(
@@ -148,12 +155,37 @@ export default function MeerScreen() {
           />
 
           <Text style={[styles.section, { marginTop: 24, color: theme.text }]}>
+            L1 — weekpakket (zonder server)
+          </Text>
+          <Text style={[styles.hint, { color: theme.textMuted }]}>
+            Medewerker: Overuren → Weekpakket exporteren → mail/OneDrive. Manager:
+            hier of onder Overuren importeren → accepteren/afwijzen → PDF voor HR.
+            Geen Entra/VPN/cloud-sync.
+          </Text>
+          <Pressable
+            style={[styles.backupBtn, { borderColor: Brand.accent }]}
+            onPress={async () => {
+              const result = await importWeekPackage();
+              if (result.ok) {
+                setBackupMsg(`Weekpakket van ${result.medewerker} geïmporteerd.`);
+                Alert.alert('Import ok', `${result.medewerker} — zie tab Overuren.`);
+              } else {
+                setBackupMsg(result.error);
+                Alert.alert('Import mislukt', result.error);
+              }
+            }}>
+            <Ionicons name="document-attach-outline" size={18} color={Brand.accent} />
+            <Text style={{ color: Brand.accent, fontWeight: '700' }}>
+              Weekpakket importeren…
+            </Text>
+          </Pressable>
+
+          <Text style={[styles.section, { marginTop: 24, color: theme.text }]}>
             Back-up & onderweg
           </Text>
           <Text style={[styles.hint, { color: theme.textMuted }]}>
-            Gegevens blijven op dit apparaat in de browser. Voor gebruik in het
-            buitenland of als reserve: exporteer een JSON-back-up naar OneDrive /
-            Teams / USB. Op een andere laptop: importeer dat bestand.
+            Volledige app-back-up (alle weken). Voor één week: gebruik weekpakket
+            onder Overuren.
           </Text>
           <Text style={[styles.hint, { color: theme.textMuted }]}>
             Nu in deze browser: {registraties.length} registratie(s).

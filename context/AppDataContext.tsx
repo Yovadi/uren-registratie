@@ -10,10 +10,17 @@ import React, {
 import {
   DEFAULT_SETTINGS,
   buildBackup,
+  buildWeekPackage,
   downloadBackupJson,
+  downloadWeekPackage,
+  downloadWeekPdf,
   enrichRegistratie,
   parseBackup,
+  parseWeekPackage,
   pickBackupFile,
+  pickWeekPackageFile,
+  remapPackageForImport,
+  summarizeWeekRows,
   type AppSettings,
   type DashboardFilters,
   type OverurenWeek,
@@ -47,6 +54,11 @@ type Ctx = {
   removeReis: (id: string) => Promise<void>;
   exportBackup: () => Promise<boolean>;
   importBackup: () => Promise<{ ok: true; count: number } | { ok: false; error: string }>;
+  exportWeekPackage: (weekId: string) => Promise<boolean>;
+  importWeekPackage: () => Promise<
+    { ok: true; weekId: string; medewerker: string } | { ok: false; error: string }
+  >;
+  exportWeekPdf: (weekId: string) => Promise<boolean>;
   resetDemoData: () => Promise<void>;
 };
 
@@ -238,6 +250,68 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [store, hydrate]);
 
+  const exportWeekPackage = useCallback(
+    async (weekId: string) => {
+      if (!store) throw new Error('Store not ready');
+      const weeks = await store.listOverurenWeken();
+      const week = weeks.find((w) => w.id === weekId);
+      if (!week) return false;
+      const regs = await store.listRegistraties();
+      const st = await store.getSettings();
+      return downloadWeekPackage(buildWeekPackage(week, regs, st));
+    },
+    [store],
+  );
+
+  const importWeekPackage = useCallback(async () => {
+    if (!store) throw new Error('Store not ready');
+    try {
+      const raw = await pickWeekPackageFile();
+      const pkg = parseWeekPackage(raw);
+      const nextId = await store.nextRegistratieId();
+      const { week, registraties: regs } = remapPackageForImport(pkg, nextId);
+      for (const r of regs) {
+        await store.upsertRegistratie(r);
+      }
+      await store.upsertOverurenWeek(week);
+      await hydrate(store);
+      return {
+        ok: true as const,
+        weekId: week.id,
+        medewerker: week.medewerker,
+      };
+    } catch (e) {
+      return {
+        ok: false as const,
+        error: e instanceof Error ? e.message : 'Import mislukt',
+      };
+    }
+  }, [store, hydrate]);
+
+  const exportWeekPdf = useCallback(
+    async (weekId: string) => {
+      if (!store) throw new Error('Store not ready');
+      const weeks = await store.listOverurenWeken();
+      const week = weeks.find((w) => w.id === weekId);
+      if (!week) return false;
+      const regs = await store.listRegistraties();
+      const st = await store.getSettings();
+      const rows = week.registratieIds
+        .map((id) => regs.find((r) => r.RegistratieID === id))
+        .filter(Boolean) as WerkRegistratie[];
+      const summary = summarizeWeekRows(
+        rows,
+        week.overurenKlok,
+        st.defaultLand,
+        st.buitenlandToelagePerDag,
+      );
+      return downloadWeekPdf(week, rows, summary, {
+        generatedBy: session?.naam ?? st.managerNaam,
+      });
+    },
+    [store, session?.naam],
+  );
+
   const resetDemoData = useCallback(async () => {
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem('hotraco-speria-fsm:v3');
@@ -271,6 +345,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       removeReis,
       exportBackup,
       importBackup,
+      exportWeekPackage,
+      importWeekPackage,
+      exportWeekPdf,
       resetDemoData,
     }),
     [
@@ -291,6 +368,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       removeReis,
       exportBackup,
       importBackup,
+      exportWeekPackage,
+      importWeekPackage,
+      exportWeekPdf,
       resetDemoData,
     ],
   );

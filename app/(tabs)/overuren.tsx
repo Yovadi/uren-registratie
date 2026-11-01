@@ -56,7 +56,16 @@ function initials(name: string): string {
 export default function OverurenScreen() {
   const theme = useTheme();
   const { session } = useAuth();
-  const { ready, registraties, overurenWeken, settings, saveOverurenWeek } = useAppData();
+  const {
+    ready,
+    registraties,
+    overurenWeken,
+    settings,
+    saveOverurenWeek,
+    exportWeekPackage,
+    importWeekPackage,
+    exportWeekPdf,
+  } = useAppData();
   const isManager = session?.rol === 'manager' || settings.rol === 'manager';
   const myName = session?.naam ?? settings.medewerkerNaam;
 
@@ -141,7 +150,10 @@ export default function OverurenScreen() {
     const mgr = session?.naam ?? settings.managerNaam;
     for (const id of selected) {
       const week = overurenWeken.find((w) => w.id === id && w.status === 'ingediend');
-      if (week) await saveOverurenWeek(approveWeek(week, mgr));
+      if (week) {
+        await saveOverurenWeek(approveWeek(week, mgr));
+        await exportWeekPdf(week.id);
+      }
     }
     setSelected(new Set());
   };
@@ -158,6 +170,31 @@ export default function OverurenScreen() {
     if (!ok) Alert.alert('Export', 'CSV-download werkt in de browser (web).');
   };
 
+  const onImportPackage = async () => {
+    const result = await importWeekPackage();
+    if (result.ok) {
+      Alert.alert(
+        'Weekpakket geïmporteerd',
+        `${result.medewerker} staat nu in je controlijst. Accepteer of wijs af, daarna PDF.`,
+      );
+    } else {
+      Alert.alert('Import mislukt', result.error);
+    }
+  };
+
+  const onAccept = async (week: OverurenWeek) => {
+    const mgr = session?.naam ?? settings.managerNaam;
+    const approved = approveWeek(week, mgr);
+    await saveOverurenWeek(approved);
+    const ok = await exportWeekPdf(week.id);
+    if (!ok) {
+      Alert.alert(
+        'Geaccepteerd',
+        'PDF-download werkt in de browser (web). Gebruik “PDF” op de weekkaart.',
+      );
+    }
+  };
+
   if (isManager) {
     return (
       <Screen>
@@ -168,11 +205,15 @@ export default function OverurenScreen() {
         />
         <Content>
           <View style={[styles.procedure, { backgroundColor: theme.tintSoft }]}>
-            <Text style={styles.procedureTitle}>Ingeleverde weken</Text>
+            <Text style={styles.procedureTitle}>Ingeleverde weken (L1)</Text>
             <Text style={[styles.procedureStep, { color: theme.text }]}>
-              Medewerker heeft al TVT of uitbetalen gekozen. Jij controleert alleen:
-              accepteren of afwijzen. Filter op naam of accepteer meerdere tegelijk.
+              Medewerker koos al TVT of uitbetalen. Jij accepteert of wijst af. Andere
+              PC: importeer hun weekpakket (.json), keur goed, download PDF voor
+              HR/archief.
             </Text>
+            <Pressable style={styles.importBtn} onPress={onImportPackage}>
+              <Text style={styles.importBtnText}>Weekpakket importeren…</Text>
+            </Pressable>
           </View>
 
           <View style={styles.toggleRow}>
@@ -318,18 +359,25 @@ export default function OverurenScreen() {
 
                     <Timeline week={week} />
 
-                    <View style={styles.rowBtns}>
-                      <Pressable onPress={() => setExpandedId(open ? null : week.id)}>
-                        <Text style={styles.link}>
-                          {open ? 'Verberg details' : 'Details / registraties'}
-                        </Text>
-                      </Pressable>
-                      <Pressable onPress={() => exportWeek(week)}>
-                        <Text style={styles.link}>Export CSV</Text>
-                      </Pressable>
-                    </View>
+                  <View style={styles.rowBtns}>
+                    <Pressable onPress={() => setExpandedId(open ? null : week.id)}>
+                      <Text style={styles.link}>
+                        {open ? 'Verberg details' : 'Details / registraties'}
+                      </Text>
+                    </Pressable>
+                    <Pressable onPress={() => exportWeek(week)}>
+                      <Text style={styles.link}>CSV</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={async () => {
+                        const ok = await exportWeekPdf(week.id);
+                        if (!ok) Alert.alert('PDF', 'PDF-download werkt in de browser.');
+                      }}>
+                      <Text style={styles.link}>PDF</Text>
+                    </Pressable>
+                  </View>
 
-                    {open ? (
+                  {open ? (
                       <View
                         style={[
                           styles.detailBox,
@@ -351,15 +399,8 @@ export default function OverurenScreen() {
                         <View style={styles.rowBtns}>
                           <Pressable
                             style={styles.secondary}
-                            onPress={() =>
-                              saveOverurenWeek(
-                                approveWeek(
-                                  week,
-                                  session?.naam ?? settings.managerNaam,
-                                ),
-                              )
-                            }>
-                            <Text style={styles.secondaryText}>Accepteren</Text>
+                            onPress={() => onAccept(week)}>
+                            <Text style={styles.secondaryText}>Accepteren + PDF</Text>
                           </Pressable>
                           <Pressable
                             style={styles.rejectBtn}
@@ -371,6 +412,10 @@ export default function OverurenScreen() {
                           </Pressable>
                         </View>
                       </View>
+                    ) : week.status === 'goedgekeurd' ? (
+                      <Text style={[styles.meta, { marginTop: 8 }]}>
+                        Geaccepteerd — PDF opnieuw via knop hierboven.
+                      </Text>
                     ) : null}
                   </View>
                 </View>
@@ -515,7 +560,32 @@ export default function OverurenScreen() {
                   </Pressable>
                   {sub ? (
                     <Pressable onPress={() => exportWeek(sub)}>
-                      <Text style={styles.link}>Export CSV</Text>
+                      <Text style={styles.link}>CSV</Text>
+                    </Pressable>
+                  ) : null}
+                  {sub ? (
+                    <Pressable
+                      onPress={async () => {
+                        const ok = await exportWeekPackage(sub.id);
+                        if (!ok) {
+                          Alert.alert('Weekpakket', 'Download werkt in de browser.');
+                        } else {
+                          Alert.alert(
+                            'Weekpakket',
+                            'JSON gedownload — stuur via mail/OneDrive naar je manager.',
+                          );
+                        }
+                      }}>
+                      <Text style={styles.link}>Weekpakket</Text>
+                    </Pressable>
+                  ) : null}
+                  {sub ? (
+                    <Pressable
+                      onPress={async () => {
+                        const ok = await exportWeekPdf(sub.id);
+                        if (!ok) Alert.alert('PDF', 'PDF-download werkt in de browser.');
+                      }}>
+                      <Text style={styles.link}>PDF</Text>
                     </Pressable>
                   ) : null}
                 </View>
@@ -551,9 +621,10 @@ export default function OverurenScreen() {
                     </Text>
                   </Pressable>
                 )}
-                {status === 'ingediend' ? (
+                {status === 'ingediend' && sub ? (
                   <Text style={[styles.meta, { marginTop: 8 }]}>
-                    Ingediend ({sub?.verwerking}) — wacht op acceptatie van de manager.
+                    Ingediend ({sub.verwerking}). Andere PC? Stuur het weekpakket naar je
+                    manager.
                   </Text>
                 ) : null}
               </View>
@@ -632,18 +703,19 @@ export default function OverurenScreen() {
                     (w) => `${w.weekStart}_${w.medewerker}` === confirmSnapKey,
                   );
                   if (!snap) return;
-                  await saveOverurenWeek(
-                    createSubmissionFromSnapshot(
-                      snap,
-                      submitNote.trim(),
-                      myName,
-                      submitKeuze,
-                    ),
+                  const submitted = createSubmissionFromSnapshot(
+                    snap,
+                    submitNote.trim(),
+                    myName,
+                    submitKeuze,
                   );
+                  await saveOverurenWeek(submitted);
+                  await exportWeekPackage(submitted.id);
+                  await exportWeekPdf(submitted.id);
                   setConfirmSnapKey(null);
                   Alert.alert(
                     'Ingediend',
-                    `Week ${isoWeekNumber(snap.weekStart)} staat bij de manager (${submitKeuze}).`,
+                    `Week ${isoWeekNumber(snap.weekStart)} (${submitKeuze}). Weekpakket + PDF gedownload — stuur het pakket naar je manager als die op een andere PC werkt.`,
                   );
                 }}>
                 <Text style={styles.primaryText}>Bevestig</Text>
@@ -721,6 +793,15 @@ const styles = StyleSheet.create({
   },
   procedureTitle: { fontWeight: '800' },
   procedureStep: { fontSize: 13, lineHeight: 18 },
+  importBtn: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    backgroundColor: Brand.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  importBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   reminder: {
     marginHorizontal: 16,
     marginTop: 10,

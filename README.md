@@ -24,9 +24,13 @@ Data blijft bewaard in de browser + via **Meer → Exporteer back-up**.
 | Medewerker (Jan / Sara / Tom) | `1234` |
 | Manager | `9999` |
 
-## Back-up onderweg
-**Meer → Exporteer alle gegevens** → zet JSON in OneDrive/Teams.  
-Andere laptop: **Importeer back-up…**
+## L1 — weekpakket + PDF (zonder server)
+1. Medewerker dient week in → download **weekpakket (.json)** + **PDF**.
+2. Stuur pakket via mail/OneDrive naar manager (andere PC).
+3. Manager: **Overuren → Weekpakket importeren** → **Accepteren + PDF** of afwijzen.
+4. PDF = archief voor HR (weeknummer, uren, hotel/toelage, TVT/uitbetalen, handtekeningblok).
+
+Volledige app-back-up blijft onder **Meer → Exporteer alle gegevens**.
 
 ## Lokaal ontwikkelen (optioneel)
 ```bash
