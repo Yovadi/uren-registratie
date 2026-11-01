@@ -58,7 +58,7 @@ type Ctx = {
   importWeekPackage: () => Promise<
     { ok: true; weekId: string; medewerker: string } | { ok: false; error: string }
   >;
-  exportWeekPdf: (weekId: string) => Promise<boolean>;
+  exportWeekPdf: (weekId: string, weekOverride?: OverurenWeek) => Promise<boolean>;
   resetDemoData: () => Promise<void>;
 };
 
@@ -268,6 +268,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     try {
       const raw = await pickWeekPackageFile();
       const pkg = parseWeekPackage(raw);
+      const existing = (await store.listOverurenWeken()).find(
+        (w) => w.id === pkg.week.id,
+      );
+      if (existing) {
+        for (const id of existing.registratieIds) {
+          await store.deleteRegistratie(id);
+        }
+      }
       const nextId = await store.nextRegistratieId();
       const { week, registraties: regs } = remapPackageForImport(pkg, nextId);
       for (const r of regs) {
@@ -289,10 +297,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   }, [store, hydrate]);
 
   const exportWeekPdf = useCallback(
-    async (weekId: string) => {
+    async (weekId: string, weekOverride?: OverurenWeek) => {
       if (!store) throw new Error('Store not ready');
       const weeks = await store.listOverurenWeken();
-      const week = weeks.find((w) => w.id === weekId);
+      const week = weekOverride ?? weeks.find((w) => w.id === weekId);
       if (!week) return false;
       const regs = await store.listRegistraties();
       const st = await store.getSettings();

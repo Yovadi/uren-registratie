@@ -25,7 +25,7 @@ export function buildWeekPdfLines(
     `Periode: ${isoWeekLabel(week.weekStart)}`,
     `Medewerker: ${week.medewerker}`,
     `Status: ${statusLabel(week.status)}`,
-    `Keuze medewerker: ${week.verwerking ?? '—'}`,
+    `Keuze medewerker: ${verwerkingLabel(week.verwerking)}`,
     '',
     '— Samenvatting —',
     `Overuren (klok): ${formatHours(summary.overurenKlok)}`,
@@ -57,17 +57,30 @@ export function buildWeekPdfLines(
       `${r.Datum} ${r.Starttijd}-${r.Eindtijd} ${r.Activiteit} ${formatHours(r.Uren)} | ${r.Klant} | ${r.Land}${r.Hotelnacht ? ' | hotel' : ''}`,
     );
   }
+  const signed =
+    week.status === 'goedgekeurd'
+      ? {
+          naam: week.beoordeeldDoor ?? '………………',
+          datum: week.beoordeeldOp ? fmtDt(week.beoordeeldOp) : '………………',
+        }
+      : { naam: '………………', datum: '………………' };
   lines.push(
     '',
     '— Handtekening / archief —',
-    `Manager akkoord (naam): ${week.status === 'goedgekeurd' ? week.beoordeeldDoor ?? '………………' : '………………'}`,
-    'Datum: ………………',
+    `Manager akkoord (naam): ${signed.naam}`,
+    `Datum: ${signed.datum}`,
     'Handtekening: ………………',
     '',
     `Gegenereerd: ${new Date().toLocaleString('nl-NL')}${opts?.generatedBy ? ` door ${opts.generatedBy}` : ''}`,
     'L1-archief — geen cloud-sync; bewaar PDF/weekpakket in Teams/OneDrive indien nodig.',
   );
   return lines;
+}
+
+function verwerkingLabel(v: OverurenWeek['verwerking']): string {
+  if (v === 'TVT') return 'TVT';
+  if (v === 'Uitbetaling') return 'Uitbetalen';
+  return '—';
 }
 
 function fmtDt(iso: string): string {

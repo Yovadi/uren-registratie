@@ -151,8 +151,9 @@ export default function OverurenScreen() {
     for (const id of selected) {
       const week = overurenWeken.find((w) => w.id === id && w.status === 'ingediend');
       if (week) {
-        await saveOverurenWeek(approveWeek(week, mgr));
-        await exportWeekPdf(week.id);
+        const approved = approveWeek(week, mgr);
+        await saveOverurenWeek(approved);
+        await exportWeekPdf(approved.id, approved);
       }
     }
     setSelected(new Set());
@@ -186,7 +187,7 @@ export default function OverurenScreen() {
     const mgr = session?.naam ?? settings.managerNaam;
     const approved = approveWeek(week, mgr);
     await saveOverurenWeek(approved);
-    const ok = await exportWeekPdf(week.id);
+    const ok = await exportWeekPdf(approved.id, approved);
     if (!ok) {
       Alert.alert(
         'Geaccepteerd',
